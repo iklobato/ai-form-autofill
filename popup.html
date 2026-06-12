@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --secondary: #374151;
+        --secondary-hover: #4b5563;
+        --link: #60a5fa;
+      }
+      body {
+        font: 13px system-ui, sans-serif;
+        width: 260px;
+        margin: 0;
+        padding: 12px;
+        color: var(--text);
+        background: var(--bg);
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 8px;
+      }
+      button {
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--primary-hover);
+      }
+      button.secondary {
+        background: var(--secondary);
+        margin-top: 6px;
+      }
+      button.secondary:hover {
+        background: var(--secondary-hover);
+      }
+      #status {
+        margin: 10px 0 0;
+        color: var(--text);
+        min-height: 16px;
+      }
+      #meta {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .check {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        cursor: pointer;
+      }
+      .check input {
+        width: auto;
+      }
+      a {
+        color: var(--link);
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AI Form Autofill</h1>
+    <button id="fill">Autofill this page</button>
+    <button id="import" class="secondary">Import autofill from page</button>
+    <div id="status"></div>
+    <div id="meta"></div>
+    <label class="check">
+      <input type="checkbox" id="auto" />
+      Auto-fill this site automatically
+    </label>
+    <p style="margin: 10px 0 0">
+      <a id="options">Settings &amp; knowledge base</a>
+    </p>
+    <script src="shared.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

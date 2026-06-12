@@ -1,0 +1,11 @@
+# Build artifacts (the packaged extension is attached to GitHub Releases instead)
+*.zip
+
+# Playwright MCP run artifacts (screenshots, console logs, snapshots)
+.playwright-mcp/
+
+# Node / tooling
+node_modules/
+
+# OS
+.DS_Store

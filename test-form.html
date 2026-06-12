@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AI Form Autofill — test page</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; }
+      h2 { margin-top: 28px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+      .field { margin: 10px 0; }
+      label { display: inline-block; min-width: 220px; font-weight: 600; }
+      input, select, textarea { padding: 5px; }
+      fieldset { margin: 10px 0; }
+      .hint { color: #666; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>AI Form Autofill — test page</h1>
+    <p class="hint">
+      Load the extension, then click <b>Autofill</b> (or enable the site) and watch
+      which fields fill. Sensitive fields should never be captured; non-fillable
+      controls should be skipped.
+    </p>
+    <p class="hint">
+      <b>To see everything fill:</b> open the extension's <b>Settings → Knowledge
+      base</b>, paste the sample profile below, Save — then Autofill here. Sections
+      9–13 exercise the newer field types (choice groups, contenteditable, essays,
+      unlabeled questions, and fields added after load).
+    </p>
+    <details>
+      <summary class="hint">Sample knowledge base (click to copy into Settings)</summary>
+      <pre style="white-space: pre-wrap; background: #f6f8fa; padding: 10px; border-radius: 6px; font-size: 12px">
+# Personal
+Full name: Alex Rivera
+First name: Alex
+Last name: Rivera
+Email: alex.rivera@example.com
+Phone: +1 415 555 0148
+
+# Location
+Address line 1: 500 Market Street
+City: San Francisco
+State/Province: California
+Postal code: 94105
+Country: United States
+
+# Links
+LinkedIn: https://linkedin.com/in/alexrivera
+GitHub: https://github.com/alexrivera
+Portfolio / Website: https://alexrivera.dev
+
+# Work
+Current title: Senior Search Engineer
+Current company: Acme Search
+Years of experience: 9
+Top skills: Python, Go, Elasticsearch, vector search, RAG
+
+# Job application preferences
+Work authorization: Authorized to work in the US
+Require visa sponsorship: No
+Willing to relocate: Yes
+Preferred work mode (remote / hybrid / onsite): Remote
+Notice period: 4 weeks
+Planned time off / unavailability: None planned
+
+# Essay material
+Key projects: Built semantic search over 40M support docs at Acme using OpenSearch + bi-encoder embeddings; cut median time-to-answer 38%. https://alexrivera.dev/projects/semantic-search
+Production experience highlights: Ran an OpenSearch cluster (1.2B vectors) and a RAG pipeline serving 3k QPS; owned embedding retraining.
+Proudest professional achievement: Raised support-search relevance from 61% to 89% MRR@10 in two quarters.
+Why you're a strong candidate: deep production retrieval experience, ships measurable relevance wins, fluent across Python/Go and the full vector-search stack.
+Third-person pitch / short bio: Alex Rivera is a senior search engineer with nine years building production retrieval systems — semantic search, vector databases, and LLM-powered RAG at scale.</pre>
+    </details>
+
+    <h2>Job posting (context for the essay questions)</h2>
+    <p>
+      <b>Senior Search Engineer — Relevance Platform.</b> We build semantic search
+      and retrieval at scale: vector databases, OpenSearch, embeddings, and
+      LLM-powered RAG serving thousands of queries per second. You will own
+      relevance, embeddings, and the retrieval pipeline end to end.
+    </p>
+
+    <h2>1. Text input types</h2>
+    <form>
+      <div class="field"><label for="t-text">text</label><input id="t-text" type="text" name="text_field" /></div>
+      <div class="field"><label for="t-email">email</label><input id="t-email" type="email" name="email_field" /></div>
+      <div class="field"><label for="t-tel">tel</label><input id="t-tel" type="tel" name="tel_field" /></div>
+      <div class="field"><label for="t-url">url</label><input id="t-url" type="url" name="url_field" /></div>
+      <div class="field"><label for="t-search">search</label><input id="t-search" type="search" name="search_field" /></div>
+      <div class="field"><label for="t-number">number</label><input id="t-number" type="number" name="number_field" /></div>
+      <div class="field"><label for="t-date">date</label><input id="t-date" type="date" name="date_field" /></div>
+      <div class="field"><label for="t-dtl">datetime-local</label><input id="t-dtl" type="datetime-local" name="dtl_field" /></div>
+      <div class="field"><label for="t-month">month</label><input id="t-month" type="month" name="month_field" /></div>
+      <div class="field"><label for="t-week">week</label><input id="t-week" type="week" name="week_field" /></div>
+      <div class="field"><label for="t-time">time</label><input id="t-time" type="time" name="time_field" /></div>
+    </form>
+
+    <h2>2. autocomplete tokens (canonical keys)</h2>
+    <form>
+      <div class="field"><label for="a-name">name</label><input id="a-name" type="text" autocomplete="name" /></div>
+      <div class="field"><label for="a-given">given-name</label><input id="a-given" type="text" autocomplete="given-name" /></div>
+      <div class="field"><label for="a-family">family-name</label><input id="a-family" type="text" autocomplete="family-name" /></div>
+      <div class="field"><label for="a-email">email</label><input id="a-email" type="email" autocomplete="email" /></div>
+      <div class="field"><label for="a-tel">tel</label><input id="a-tel" type="tel" autocomplete="tel" /></div>
+      <div class="field"><label for="a-org">organization</label><input id="a-org" type="text" autocomplete="organization" /></div>
+      <div class="field"><label for="a-street">street-address</label><input id="a-street" type="text" autocomplete="street-address" /></div>
+      <div class="field"><label for="a-l1">address-line1</label><input id="a-l1" type="text" autocomplete="address-line1" /></div>
+      <div class="field"><label for="a-l2">address-line2</label><input id="a-l2" type="text" autocomplete="address-line2" /></div>
+      <div class="field"><label for="a-zip">postal-code</label><input id="a-zip" type="text" autocomplete="postal-code" /></div>
+      <div class="field"><label for="a-country">country-name</label><input id="a-country" type="text" autocomplete="country-name" /></div>
+      <div class="field"><label for="a-ship">shipping address-line1</label><input id="a-ship" type="text" autocomplete="shipping address-line1" /></div>
+    </form>
+
+    <h2>3. Label association variants</h2>
+    <form>
+      <div class="field"><label for="l-for">label[for]</label><input id="l-for" type="text" name="label_for" /></div>
+      <div class="field"><label>wrapping label <input type="text" name="wrapped" /></label></div>
+      <div class="field"><input type="text" name="aria_label" aria-label="Aria label name" /></div>
+      <div class="field">
+        <span id="lb1">Aria</span> <span id="lb2">labelled by</span>
+        <input type="text" name="aria_lblby" aria-labelledby="lb1 lb2" />
+      </div>
+      <div class="field"><input type="text" name="ph_only" placeholder="Placeholder only" /></div>
+      <div class="field"><input type="text" name="title_only" title="Title only" /></div>
+      <fieldset>
+        <legend>Shipping address</legend>
+        <div class="field"><label for="fs-city">City</label><input id="fs-city" type="text" name="fs_city" /></div>
+      </fieldset>
+      <div class="field">
+        <label for="desc-field">With help text</label>
+        <input id="desc-field" type="text" name="desc_field" aria-describedby="help1" />
+        <div id="help1" class="hint">Enter your full legal name</div>
+      </div>
+    </form>
+
+    <h2>4. Opaque / awkward names (keyed by label)</h2>
+    <form>
+      <div class="field"><label for="question_12013476007">LinkedIn Profile URL</label><input id="question_12013476007" type="url" name="question_12013476007" /></div>
+      <div class="field"><label for="a1b2c3d4-1111-2222-3333-444455556666">Phone Number</label><input id="a1b2c3d4-1111-2222-3333-444455556666" type="tel" /></div>
+      <div class="field"><label for="camel">camelCase name</label><input id="camel" type="text" name="firstName" /></div>
+    </form>
+
+    <h2>5. Constraints</h2>
+    <form>
+      <div class="field"><label for="c-req">required</label><input id="c-req" type="text" name="req_field" required /></div>
+      <div class="field"><label for="c-max">maxlength 10</label><input id="c-max" type="text" name="max_field" maxlength="10" /></div>
+      <div class="field"><label for="c-pat">pattern</label><input id="c-pat" type="text" name="pat_field" pattern="[0-9]{5}" /></div>
+    </form>
+
+    <h2>6. Textarea &amp; selects</h2>
+    <form>
+      <div class="field"><label for="s-textarea">textarea</label><textarea id="s-textarea" name="bio"></textarea></div>
+      <div class="field">
+        <label for="s-single">select single</label>
+        <select id="s-single" name="country">
+          <option value="">—</option>
+          <option>United States</option>
+          <option>Brazil</option>
+          <option>Germany</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="s-multi">select multiple</label>
+        <select id="s-multi" name="langs" multiple>
+          <option>English</option>
+          <option>Portuguese</option>
+          <option>German</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="s-optgroup">select with optgroups</label>
+        <select id="s-optgroup" name="role">
+          <optgroup label="Engineering"><option>Backend</option><option>Frontend</option></optgroup>
+          <optgroup label="Design"><option>Product</option></optgroup>
+        </select>
+      </div>
+    </form>
+
+    <h2>7. Non-fillable controls (must be skipped)</h2>
+    <form>
+      <div class="field"><input type="hidden" name="hidden_field" value="x" /></div>
+      <div class="field"><label>file</label><input type="file" name="file_field" /></div>
+      <div class="field"><label>checkbox</label><input type="checkbox" name="cb" /></div>
+      <div class="field"><label>radio</label><input type="radio" name="rb" /></div>
+      <div class="field"><label>range</label><input type="range" name="rng" /></div>
+      <div class="field"><label>color</label><input type="color" name="col" /></div>
+      <div class="field"><label>disabled</label><input type="text" name="disabled_field" disabled /></div>
+      <div class="field"><label>readonly</label><input type="text" name="readonly_field" readonly /></div>
+      <div class="field"><input type="submit" value="submit" /></div>
+      <div class="field"><input type="button" value="button" /></div>
+      <div class="field"><input type="reset" value="reset" /></div>
+    </form>
+
+    <h2>8. Sensitive (never captured)</h2>
+    <form>
+      <div class="field"><label for="x-pw">password</label><input id="x-pw" type="password" name="password" /></div>
+      <div class="field"><label for="x-curpw">current-password</label><input id="x-curpw" type="text" autocomplete="current-password" /></div>
+      <div class="field"><label for="x-cc">cc-number</label><input id="x-cc" type="text" autocomplete="cc-number" /></div>
+      <div class="field"><label for="x-csc">cc-csc</label><input id="x-csc" type="text" autocomplete="cc-csc" /></div>
+      <div class="field"><label for="x-cvv">cvv</label><input id="x-cvv" type="text" name="cvv" /></div>
+      <div class="field"><label for="x-ssn">ssn</label><input id="x-ssn" type="text" name="ssn" /></div>
+      <div class="field"><label for="x-otp">one-time-code</label><input id="x-otp" type="text" autocomplete="one-time-code" /></div>
+      <div class="field"><label for="x-iban">iban</label><input id="x-iban" type="text" name="iban" /></div>
+      <div class="field"><label for="x-routing">routing number</label><input id="x-routing" type="text" name="routing_number" /></div>
+    </form>
+
+    <h2>9. Choice fields (radio / checkbox groups)</h2>
+    <form>
+      <fieldset>
+        <legend>Are you legally authorized to work here?</legend>
+        <label style="font-weight: 400"><input type="radio" name="work_auth" value="yes" /> Yes</label>
+        <label style="font-weight: 400"><input type="radio" name="work_auth" value="no" /> No</label>
+      </fieldset>
+      <fieldset>
+        <legend>Preferred work mode</legend>
+        <label style="font-weight: 400"><input type="radio" name="work_mode" value="remote" /> Remote</label>
+        <label style="font-weight: 400"><input type="radio" name="work_mode" value="hybrid" /> Hybrid</label>
+        <label style="font-weight: 400"><input type="radio" name="work_mode" value="onsite" /> Onsite</label>
+      </fieldset>
+      <fieldset>
+        <legend>Top skills (select all that apply)</legend>
+        <label style="font-weight: 400"><input type="checkbox" name="skills" value="python" /> Python</label>
+        <label style="font-weight: 400"><input type="checkbox" name="skills" value="go" /> Go</label>
+        <label style="font-weight: 400"><input type="checkbox" name="skills" value="elasticsearch" /> Elasticsearch</label>
+        <label style="font-weight: 400"><input type="checkbox" name="skills" value="rust" /> Rust</label>
+      </fieldset>
+      <div class="field">
+        <label style="min-width: 0; font-weight: 400">
+          <input type="checkbox" name="relocate" /> Willing to relocate
+        </label>
+      </div>
+    </form>
+
+    <h2>10. Questions without a &lt;label&gt; (text block above the field)</h2>
+    <p class="hint">No label association — the prompt is a plain block above each input.</p>
+    <form>
+      <div class="field">
+        <div>What is your current job title?</div>
+        <input type="text" name="opaque_title_8842001" style="width: 100%" />
+      </div>
+      <div class="field">
+        <div>Which company do you currently work for?</div>
+        <input type="text" name="opaque_company_8842002" style="width: 100%" />
+      </div>
+    </form>
+
+    <h2>11. Rich-text editor (contenteditable)</h2>
+    <form>
+      <div>Cover letter</div>
+      <div
+        contenteditable="true"
+        aria-label="Cover letter"
+        data-placeholder="Write your cover letter…"
+        style="min-height: 90px; border: 1px solid #ccc; padding: 8px; border-radius: 4px"
+      ></div>
+    </form>
+
+    <h2>12. Long-answer questions (essay / textarea)</h2>
+    <form>
+      <div class="field">
+        <label for="q-search" style="display: block; min-width: 0">
+          Describe your experience with semantic search, embeddings, vector
+          databases, Elasticsearch/OpenSearch, or LLM-powered retrieval, with
+          production examples.
+        </label>
+        <textarea id="q-search" name="experience_search" rows="4" style="width: 100%"></textarea>
+      </div>
+      <div class="field">
+        <label for="q-timeoff" style="display: block; min-width: 0">
+          Do you plan to take any time off in the near future?
+        </label>
+        <textarea id="q-timeoff" name="planned_time_off" rows="2" style="width: 100%"></textarea>
+      </div>
+      <div class="field">
+        <label for="q-best" style="display: block; min-width: 0">
+          What makes you the best candidate for this job?
+        </label>
+        <textarea id="q-best" name="best_candidate" rows="4" style="width: 100%"></textarea>
+      </div>
+      <div class="field">
+        <label for="q-pitch" style="display: block; min-width: 0">
+          Write your third-person pitch here.
+        </label>
+        <textarea id="q-pitch" name="third_person_pitch" rows="3" style="width: 100%"></textarea>
+      </div>
+    </form>
+
+    <h2>14. Not in the knowledge base (triggers "ask the user")</h2>
+    <p class="hint">
+      The sample knowledge base has no salary — the plugin should ask for it,
+      then reuse your answer on later forms.
+    </p>
+    <form>
+      <div class="field">
+        <label style="display: block">
+          Desired annual salary (USD)
+          <input type="text" name="comp_expectation_9001" style="width: 100%" />
+        </label>
+      </div>
+    </form>
+
+    <h2>13. Dynamically added fields (auto-fill sites only)</h2>
+    <p class="hint">
+      Enable <b>Auto-fill this site automatically</b>, then click the button: the
+      MutationObserver should detect and fill the new fields after they appear.
+    </p>
+    <form id="dynamic-form">
+      <button type="button" id="add-more">Add more fields</button>
+    </form>
+    <script>
+      document.getElementById("add-more").addEventListener("click", () => {
+        const form = document.getElementById("dynamic-form");
+        const examples = [
+          ["Email", "email", "email"],
+          ["LinkedIn Profile URL", "url", "linkedin_step2"],
+          ["What is your notice period?", "text", "notice_period_step2"],
+        ];
+        for (const [labelText, type, name] of examples) {
+          const wrap = document.createElement("div");
+          wrap.className = "field";
+          const id = "dyn-" + name;
+          wrap.innerHTML =
+            '<label for="' + id + '">' + labelText + "</label>" +
+            '<input id="' + id + '" type="' + type + '" name="' + name + '" />';
+          form.insertBefore(wrap, document.getElementById("add-more"));
+        }
+        document.getElementById("add-more").disabled = true;
+      });
+    </script>
+  </body>
+</html>

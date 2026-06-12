@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --surface: #111827;
+        --surface-2: #1f2937;
+        --border: #1f2937;
+        --border-2: #374151;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --danger: #dc2626;
+        --danger-hover: #b91c1c;
+        --ok: #34d399;
+        --radius: 8px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font: 14px system-ui, sans-serif;
+        margin: 0;
+        color: var(--text);
+        background: var(--bg);
+      }
+
+      /* Sticky header with the always-available Save action */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 20px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar h1 {
+        font-size: 15px;
+        margin: 0;
+      }
+      .topbar .actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      #saved {
+        color: var(--ok);
+        font-size: 13px;
+      }
+
+      /* Two-column layout: nav + content */
+      .layout {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 28px;
+        max-width: 1100px;
+        margin: 20px auto;
+        padding: 0 28px;
+      }
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        position: sticky;
+        top: 70px;
+        align-self: start;
+      }
+      .tab {
+        text-align: left;
+        padding: 9px 12px;
+        border: none;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        cursor: pointer;
+      }
+      .tab:hover {
+        background: var(--surface);
+        color: var(--text);
+      }
+      .tab.active {
+        background: var(--surface-2);
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+      }
+      .panel h2 {
+        font-size: 15px;
+        margin: 0 0 4px;
+      }
+      .panel > .hint:first-of-type {
+        margin-bottom: 8px;
+      }
+
+      label {
+        display: block;
+        margin: 14px 0 4px;
+        font-weight: 600;
+      }
+      input[type="text"],
+      input[type="password"],
+      input[type="search"],
+      select,
+      textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid var(--border-2);
+        border-radius: 6px;
+        font: inherit;
+        background: var(--bg);
+        color: var(--text);
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: #6b7280;
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+      textarea {
+        min-height: 72px;
+        resize: vertical;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 400;
+      }
+      .check {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .check input {
+        width: auto;
+      }
+
+      button {
+        padding: 8px 14px;
+        border: none;
+        border-radius: var(--radius);
+        background: var(--primary);
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--primary-hover);
+      }
+      button.secondary {
+        background: var(--border-2);
+        color: var(--text);
+      }
+      button.secondary:hover {
+        background: #4b5563;
+      }
+      button.danger {
+        background: var(--danger);
+      }
+      button.danger:hover {
+        background: var(--danger-hover);
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 12px;
+      }
+
+      /* Per-site cards */
+      .card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px;
+        margin: 12px 0;
+        background: var(--surface-2);
+      }
+      .card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      /* Saved-data rows */
+      .mem-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 5px 8px;
+        border-radius: 6px;
+      }
+      .mem-row:hover {
+        background: var(--surface-2);
+      }
+      .mem-key {
+        flex: 0 0 32%;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mem-row .mem-value {
+        flex: 1;
+        padding: 5px 7px;
+      }
+      .mem-domain {
+        flex: 0 0 auto;
+        max-width: 26%;
+        color: var(--muted);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      /* Domain is redundant when the list is already grouped by website */
+      #memList[data-group="domain"] .mem-domain {
+        display: none;
+      }
+      .mem-remove {
+        flex: 0 0 auto;
+        background: transparent;
+        color: var(--muted);
+        border: none;
+        padding: 2px 7px;
+        font-size: 15px;
+        line-height: 1;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .mem-remove:hover {
+        background: rgba(220, 38, 38, 0.18);
+        color: #fca5a5;
+      }
+      .mem-empty {
+        color: var(--muted);
+        font-style: italic;
+        margin: 8px 0;
+      }
+      .mem-group {
+        margin: 14px 0;
+      }
+      .mem-group-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        padding: 7px 8px;
+        background: var(--surface-2);
+        border-radius: 6px;
+        user-select: none;
+      }
+      .mem-group-head::before {
+        content: "▾";
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .mem-group.collapsed .mem-group-head::before {
+        content: "▸";
+      }
+      .mem-group-name {
+        font-weight: 600;
+      }
+      .mem-group-count {
+        color: var(--muted);
+        font-size: 11px;
+        background: var(--bg);
+        border-radius: 999px;
+        padding: 1px 8px;
+      }
+      .mem-group-body {
+        padding: 4px 0 2px;
+      }
+      .mem-group.collapsed .mem-group-body {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>AI Form Autofill — Settings</h1>
+      <div class="actions">
+        <span id="saved"></span>
+        <button id="save">Save</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="tabs">
+        <button class="tab active" data-tab="general">General</button>
+        <button class="tab" data-tab="knowledge">Knowledge base</button>
+        <button class="tab" data-tab="sites">Websites</button>
+        <button class="tab" data-tab="data">Saved data</button>
+      </nav>
+
+      <main id="panels">
+        <section class="panel" data-panel="general">
+          <h2>Providers &amp; defaults</h2>
+          <div class="hint">
+            API keys are stored locally in this browser only and sent only to the
+            provider you choose.
+          </div>
+
+          <label for="keyAnthropic">Anthropic API key</label>
+          <input id="keyAnthropic" type="password" placeholder="sk-ant-..." />
+
+          <label for="keyOpenai">OpenAI API key</label>
+          <input id="keyOpenai" type="password" placeholder="sk-..." />
+
+          <label for="keyOpenrouter">OpenRouter API key</label>
+          <input id="keyOpenrouter" type="password" placeholder="sk-or-..." />
+
+          <label for="defaultProvider">Default provider</label>
+          <select id="defaultProvider"></select>
+
+          <label for="defaultModel">
+            Default model <span class="hint">(blank = provider default)</span>
+          </label>
+          <input
+            id="defaultModel"
+            type="text"
+            list="models"
+            placeholder="claude-sonnet-4-6"
+          />
+
+          <label for="longFormModel">
+            Long-answer model
+            <span class="hint">
+              (blank = default model; used for essay/paragraph questions)
+            </span>
+          </label>
+          <input
+            id="longFormModel"
+            type="text"
+            list="models"
+            placeholder="claude-opus-4-8"
+          />
+
+          <label class="check" style="margin-top: 16px">
+            <input type="checkbox" id="learnAll" />
+            Learn on all sites (passive capture)
+            <span class="hint">(asks for access to all sites)</span>
+          </label>
+          <div class="hint" style="margin-top: 6px">
+            Off: values are saved only on sites you enable auto-fill for, or after
+            you click the extension on a page. On: the extension learns from forms
+            you fill on every site. Auto-fill on page load is still enabled per
+            site from the popup (<strong>Auto-fill this site automatically</strong>).
+          </div>
+        </section>
+
+        <section class="panel" data-panel="knowledge" hidden>
+          <h2>Knowledge base</h2>
+          <div class="hint">Applied to every website.</div>
+
+          <label for="globalPrompt">Global instructions</label>
+          <textarea
+            id="globalPrompt"
+            placeholder="e.g. Be concise. Prefer my work details."
+          ></textarea>
+
+          <label for="globalKnowledge">Global knowledge base</label>
+          <textarea
+            id="globalKnowledge"
+            placeholder="Name: ...&#10;Email: ...&#10;Company: ..."
+          ></textarea>
+
+          <label for="kbUrl">
+            Auto-fill from a URL
+            <span class="hint">(résumé, portfolio, public profile…)</span>
+          </label>
+          <div class="row">
+            <input id="kbUrl" type="text" placeholder="https://your-site.com/about" />
+            <button class="secondary" id="kbFetch">Fetch &amp; fill</button>
+          </div>
+          <div class="hint" id="kbStatus"></div>
+        </section>
+
+        <section class="panel" data-panel="sites" hidden>
+          <h2>Per-website settings</h2>
+          <div class="hint">
+            Override the provider, model, instructions and knowledge for a
+            specific domain.
+          </div>
+          <div id="sites"></div>
+          <div class="row">
+            <input id="newDomain" type="text" placeholder="example.com" />
+            <button class="secondary" id="addSite">Add site</button>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="data" hidden>
+          <h2>Saved values (knowledge base)</h2>
+          <div class="hint">
+            Everything learned from forms you filled, across all websites — also
+            used as context for the AI. Edit a value or clear it to remove that
+            entry, then click <strong>Save</strong>. Sensitive fields are never
+            stored. <span id="memCount"></span>
+          </div>
+          <div class="row">
+            <label class="hint" for="memGroupBy">Group by</label>
+            <select id="memGroupBy" style="width: auto">
+              <option value="domain">Website</option>
+              <option value="category">Category</option>
+            </select>
+            <input id="memSearch" type="search" placeholder="Search saved values…" />
+          </div>
+          <div id="memList"></div>
+          <div class="row">
+            <button class="secondary" id="memMerge">
+              Merge duplicates (AI)
+            </button>
+            <button class="danger" id="clearMem">Clear all saved values</button>
+            <span class="hint" id="mergeStatus"></span>
+          </div>
+
+          <h2 style="margin-top: 26px">Disabled fills</h2>
+          <div class="hint">
+            Fills you turned off with 🚫 in the preview — they won't be filled on
+            that website. Remove one to allow it again.
+          </div>
+          <div id="blockList"></div>
+        </section>
+      </main>
+    </div>
+
+    <datalist id="models">
+      <option value="claude-opus-4-8"></option>
+      <option value="claude-sonnet-4-6"></option>
+      <option value="claude-haiku-4-5-20251001"></option>
+      <option value="gpt-4o"></option>
+      <option value="gpt-4o-mini"></option>
+      <option value="o4-mini"></option>
+      <option value="openai/gpt-4o"></option>
+      <option value="anthropic/claude-sonnet-4-6"></option>
+      <option value="google/gemini-2.5-pro"></option>
+      <option value="meta-llama/llama-3.3-70b-instruct"></option>
+    </datalist>
+
+    <script src="shared.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

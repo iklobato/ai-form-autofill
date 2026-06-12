@@ -1,0 +1,16 @@
+# Files that ship in the extension, one per line. Single source of truth for
+# both package.sh (what goes in the zip) and CI (which .js files to syntax-check).
+# Everything else — README, PRIVACY, scripts, tests, .git — is intentionally out.
+manifest.json
+background.js
+shared.js
+providers.js
+formdom.js
+content.js
+popup.js
+popup.html
+options.js
+options.html
+icon16.png
+icon48.png
+icon128.png
