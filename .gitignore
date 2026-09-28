@@ -1,4 +1,4 @@
-# Build artifacts (the packaged extension is attached to GitHub Releases instead)
+# Store upload zip, built locally (see PUBLISHING.md)
 *.zip
 
 # Playwright MCP run artifacts (screenshots, console logs, snapshots)
