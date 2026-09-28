@@ -391,7 +391,7 @@ AIFF.ContentApp = class ContentApp {
     this.chip = new AIFF.SuggestionChip();
     this.preview = new AIFF.PreviewPanel();
     this.observer = new AIFF.FormObserver(this.scanner, () => this._autofill());
-    this._running = false;
+    this._running = null; // the in-flight autofill promise
     // Field keys already shown in an ask prompt this page load, so the same
     // missing field isn't asked again (e.g. on every form mutation).
     this._asked = new Set();
@@ -416,7 +416,9 @@ AIFF.ContentApp = class ContentApp {
 
   // Ask the AI/memory for proposed values for every fillable field.
   async _collectProposals() {
-    const fields = this.scanner.fields();
+    // Only empty fields: a re-run (next wizard step, second click) must never
+    // overwrite what the user already typed or edited.
+    const fields = this.scanner.fields().filter((f) => f.isEmpty());
     if (!fields.length) return { items: [], total: 0 };
     const pairs = fields.map((field) => ({ field, info: field.describe() }));
     const resp = await chrome.runtime.sendMessage({
@@ -458,20 +460,23 @@ AIFF.ContentApp = class ContentApp {
     }
     // The proposed value matched no option verbatim ("USA" vs "United States"):
     // ask the AI to pick the closest allowed option and fill that instead.
+    if (!unmatched.length) return filled;
+    let resp;
+    try {
+      resp = await chrome.runtime.sendMessage({
+        action: "aiPickOptions",
+        domain: location.hostname,
+        picks: unmatched.map((it) => ({ field: it.info, value: it.value })),
+      });
+    } catch (e) {
+      console.warn("AIFF option pick failed", e);
+      return filled;
+    }
+    const options = (resp && resp.options) || {};
     for (const it of unmatched) {
-      let resp;
-      try {
-        resp = await chrome.runtime.sendMessage({
-          action: "aiPickOption",
-          domain: location.hostname,
-          field: it.info,
-          value: it.value,
-        });
-      } catch {
-        continue;
-      }
-      if (resp && resp.option && it.field.fill(resp.option)) {
-        it.value = resp.option; // commit what was actually filled
+      const option = options[it.info.key];
+      if (option && it.field.fill(option)) {
+        it.value = option; // commit what was actually filled
         filled++;
       }
     }
@@ -479,13 +484,13 @@ AIFF.ContentApp = class ContentApp {
   }
 
   async _autofill() {
-    if (this._running) return { error: "Autofill already running." };
-    this._running = true;
-    try {
-      return await this._autofillLocked();
-    } finally {
-      this._running = false;
-    }
+    // A call that arrives mid-fill (popup click right after the injection
+    // started an auto-fill) shares that run's result instead of failing.
+    if (!this._running)
+      this._running = this._autofillLocked().finally(() => {
+        this._running = null;
+      });
+    return this._running;
   }
 
   async _autofillLocked() {

@@ -469,3 +469,34 @@ AIFF.MemoryStore = class MemoryStore extends AIFF.Store {
     return this._queue(() => this.set({}));
   }
 };
+
+// Combines the replies of every frame of a tab (a form can live in an iframe)
+// into the single reply the popup reports. Frames with no form reply too, so a
+// frame's error only wins when no frame did any work.
+AIFF.FrameReplies = class FrameReplies {
+  static _sum(replies, field) {
+    return replies.reduce((n, r) => n + (r[field] || 0), 0);
+  }
+  static _firstError(replies) {
+    return replies.find((r) => r && r.error);
+  }
+  static fill(replies) {
+    const ok = replies.filter((r) => r && !r.error);
+    const previews = ok.filter((r) => r.preview);
+    if (previews.length)
+      return { preview: true, total: FrameReplies._sum(previews, "total") };
+    const filled = FrameReplies._sum(ok, "filled");
+    if (!filled) return FrameReplies._firstError(replies) || ok[0];
+    return {
+      filled,
+      total: FrameReplies._sum(ok, "total"),
+      usedAI: ok.some((r) => r.usedAI),
+    };
+  }
+  static import(replies) {
+    const ok = replies.filter((r) => r && !r.error);
+    const imported = FrameReplies._sum(ok, "imported");
+    if (!imported) return FrameReplies._firstError(replies) || ok[0];
+    return { imported, fromBrowser: FrameReplies._sum(ok, "fromBrowser") };
+  }
+};

@@ -57,7 +57,10 @@ const ctx = {
         },
       },
     },
-    runtime: { onMessage: { addListener() {} } },
+    runtime: {
+      onMessage: { addListener() {} },
+      onInstalled: { addListener() {} },
+    },
     scripting: {},
   },
   importScripts: () => {}, // background.js imports files we load explicitly
@@ -1176,20 +1179,40 @@ async function advancedChecks() {
     JSON.stringify(asked.questions),
   );
 
-  // pickOption: verbatim replies only.
-  const picker = stubService(recorder);
-  const optField = { key: "country", options: ["United States", "Brazil"] };
-  const pick = await picker.pickOption("d.com", optField, "USA");
-  check(
-    "pickOption accepts a verbatim option",
-    pick.option === "United States",
-    pick.option,
-  );
-  const strict = stubService({
-    get: () => ({ complete: async () => "Mars" }),
+  // pickOptions: every unmatched field in one call, verbatim replies only.
+  let pickCalls = 0;
+  const picker = stubService({
+    get: () => ({
+      completeJson: async () => {
+        pickCalls++;
+        return { country: "United States", size: "Huge" };
+      },
+    }),
   });
-  const miss = await strict.pickOption("d.com", optField, "USA");
-  check("pickOption rejects non-options", miss.option === "", miss.option);
+  const countryField = {
+    key: "country",
+    options: ["United States", "Brazil"],
+  };
+  const sizeField = { key: "size", options: ["Small", "Large"] };
+  const picked = await picker.pickOptions("d.com", [
+    { field: countryField, value: "USA" },
+    { field: sizeField, value: "big" },
+  ]);
+  check(
+    "pickOptions uses one call for several fields",
+    pickCalls === 1,
+    `${pickCalls}`,
+  );
+  check(
+    "pickOptions accepts a verbatim option",
+    picked.options.country === "United States",
+    JSON.stringify(picked.options),
+  );
+  check(
+    "pickOptions rejects non-options",
+    picked.options.size === undefined,
+    JSON.stringify(picked.options),
+  );
 
   // review: returns only non-empty corrections.
   const reviewer = stubService({
@@ -1610,8 +1633,158 @@ async function askFlowChecks() {
   );
 }
 
+// --- reuse: long-form re-composition, ranked memory, cacheable prompt ---------
+function memoryService(memory, raw, completeJson) {
+  const sent = [];
+  const svc = new ctx.AIFF.AutofillService({
+    settings: {
+      load: async () =>
+        new ctx.AIFF.Settings({ providerKeys: { anthropic: "k" }, ...raw }),
+    },
+    memory: { get: async () => memory },
+    fieldMap: { get: async () => ({}) },
+    blocks: { get: async () => ({}) },
+    registry: {
+      get: () => ({
+        completeJson: async (req) => {
+          sent.push(req);
+          return completeJson(req);
+        },
+      }),
+    },
+    prompts: new ctx.AIFF.PromptBuilder(),
+  });
+  return { svc, sent };
+}
+
+async function reuseChecks() {
+  const memory = {
+    why_us: { value: "I love Acme's search team.", count: 1 },
+    email: { value: "a@b.co", count: 3 },
+  };
+  const fields = [
+    { key: "why_us", label: "Why us?", type: "textarea" },
+    { key: "email", label: "Email", type: "email" },
+  ];
+
+  const fresh = memoryService(memory, {}, () => ({
+    values: { why_us: "I want to build Globex's ranking." },
+  }));
+  const r1 = await fresh.svc.autofill("globex.com", fields);
+  const freshUser = fresh.sent.length ? fresh.sent[0].user : "";
+  check(
+    "saved essay is re-composed by the AI, not pasted",
+    r1.values.why_us === "I want to build Globex's ranking." &&
+      r1.sources.why_us === "ai",
+    JSON.stringify(r1),
+  );
+  check(
+    "short saved values still skip the AI",
+    r1.sources.email === "memory" &&
+      !freshUser.includes('"key": "email"'),
+    JSON.stringify(r1.sources),
+  );
+  check(
+    "the AI still sees the saved essay",
+    freshUser.includes("I love Acme's search team."),
+    freshUser.slice(0, 200),
+  );
+
+  const empty = memoryService(memory, {}, () => ({ values: {} }));
+  const r2 = await empty.svc.autofill("globex.com", fields);
+  check(
+    "saved essay is the fallback when the AI returns nothing",
+    r2.values.why_us === "I love Acme's search team." &&
+      r2.sources.why_us === "memory",
+    JSON.stringify(r2),
+  );
+
+  const noKey = memoryService(memory, { providerKeys: {} }, () => ({}));
+  const r3 = await noKey.svc.autofill("globex.com", fields);
+  check(
+    "without an API key the saved essay fills directly",
+    r3.values.why_us === "I love Acme's search team." && !noKey.sent.length,
+    JSON.stringify(r3),
+  );
+
+  // Ranked memory: the most-used facts survive the context cap.
+  const big = {};
+  const limit = ctx.AIFF.PromptBuilder.MEMORY_CONTEXT_LIMIT;
+  for (let i = 0; i < limit; i++)
+    big[`filler_${i}`] = { value: `v${i}`, count: 1 };
+  big.linkedin = { value: "linkedin.com/in/me", count: 9 };
+  const ranked = new ctx.AIFF.PromptBuilder().buildAutofill(
+    { prompt: "", knowledge: "" },
+    big,
+    [{ key: "x", type: "text" }],
+  );
+  check(
+    "most-used memory value survives the cap",
+    ranked.user.includes("linkedin.com/in/me") &&
+      !ranked.user.includes(`filler_${limit - 1}:`),
+    ranked.user.slice(0, 200),
+  );
+
+  // Knowledge base sits in the (cacheable) system prompt, not the user turn.
+  const kb = new ctx.AIFF.PromptBuilder().buildSuggest(
+    { prompt: "", knowledge: "Name: Ike" },
+    {},
+    { key: "name", type: "text" },
+  );
+  check(
+    "knowledge base is in the system prompt",
+    kb.system.includes("Name: Ike") && !kb.user.includes("Name: Ike"),
+    kb.system.slice(-60),
+  );
+  const httpA = recordingHttp();
+  await new ctx.AIFF.AnthropicProvider(httpA).completeJson(
+    { apiKey: "k", model: "m", system: "s", user: "u" },
+    null,
+  );
+  const sys = httpA.calls[0].body.system;
+  check(
+    "anthropic marks the system prompt cacheable",
+    Array.isArray(sys) &&
+      sys[0].text === "s" &&
+      (sys[0].cache_control || {}).type === "ephemeral",
+    JSON.stringify(sys),
+  );
+
+  // Frame replies: an iframe's fill is reported even if the top frame is empty.
+  const FR = ctx.AIFF.FrameReplies;
+  const merged = FR.fill([
+    { filled: 0, total: 0, message: "Nothing to fill." },
+    { filled: 4, total: 5, usedAI: true },
+  ]);
+  check(
+    "frame replies sum fills across frames",
+    merged.filled === 4 && merged.total === 5 && merged.usedAI,
+    JSON.stringify(merged),
+  );
+  check(
+    "frame error shows only when no frame filled",
+    FR.fill([{ error: "No API key" }, { filled: 2, total: 2 }]).filled === 2 &&
+      FR.fill([{ error: "No API key" }, { filled: 0, total: 0 }]).error ===
+        "No API key",
+    "",
+  );
+  check(
+    "frame previews add up",
+    FR.fill([{ preview: true, total: 2 }, { preview: true, total: 3 }])
+      .total === 5,
+    "",
+  );
+  check(
+    "frame imports add up",
+    FR.import([{ imported: 1, fromBrowser: 1 }, { imported: 2, fromBrowser: 0 }])
+      .imported === 3,
+    "",
+  );
+}
+
 Promise.all([
   providerChecks(),
+  reuseChecks(),
   correctChecks(),
   longFormChecks(),
   applicationFormChecks(),
