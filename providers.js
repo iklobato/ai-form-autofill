@@ -78,6 +78,12 @@ AIFF.AnthropicProvider = class AnthropicProvider extends AIFF.Provider {
       "anthropic-dangerous-direct-browser-access": "true",
     };
   }
+  // The system prompt carries the knowledge base, identical across calls of
+  // the same kind (wizard steps, chip suggestions), so mark it cacheable.
+  // Prompts below the model's minimum cacheable length are simply not cached.
+  _system(system) {
+    return [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+  }
   async complete({ apiKey, model, system, user, maxTokens }) {
     const data = await this.http.postJson(
       "https://api.anthropic.com/v1/messages",
@@ -85,7 +91,7 @@ AIFF.AnthropicProvider = class AnthropicProvider extends AIFF.Provider {
       {
         model,
         max_tokens: maxTokens || 2048,
-        system,
+        system: this._system(system),
         messages: [{ role: "user", content: user }],
       },
     );
@@ -108,7 +114,7 @@ AIFF.AnthropicProvider = class AnthropicProvider extends AIFF.Provider {
       {
         model,
         max_tokens: maxTokens || 2048,
-        system,
+        system: this._system(system),
         messages: [{ role: "user", content: user }],
         tools: [tool],
         tool_choice: { type: "tool", name: "result" },

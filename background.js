@@ -47,6 +47,7 @@ AIFF.JsonExtractor = class JsonExtractor {
 };
 
 AIFF.PromptBuilder = class PromptBuilder {
+  static MEMORY_CONTEXT_LIMIT = 50;
   static SYSTEM_AUTOFILL =
     "You help a user fill web forms quickly and accurately. You are given the " +
     "form's fields, plus the user's knowledge base and values they entered " +
@@ -103,8 +104,9 @@ AIFF.PromptBuilder = class PromptBuilder {
 
   static SYSTEM_PICK_OPTION =
     "You match a desired value to one of a form field's allowed options. " +
-    "Reply with exactly one option from the list, written exactly as given, " +
-    "or an empty reply if none reasonably matches. No quotes, no explanation.";
+    "You get a list of fields, each with its options and a desired value. " +
+    'Return ONLY a JSON object mapping each field "key" to exactly one of its ' +
+    'options, written exactly as given, or "" if none reasonably matches.';
 
   static SYSTEM_CONSOLIDATE =
     "You normalize a personal autofill memory: a list of stored field keys " +
@@ -144,10 +146,11 @@ AIFF.PromptBuilder = class PromptBuilder {
   buildAutofill(cfg, memory, fields, page) {
     const system =
       PromptBuilder.SYSTEM_AUTOFILL +
-      (cfg.prompt ? `\n\nUser guidance:\n${cfg.prompt}` : "");
+      (cfg.prompt ? `\n\nUser guidance:\n${cfg.prompt}` : "") +
+      this._knowledgeText(cfg.knowledge);
     const user =
       this._pageText(page) +
-      this._fieldsText(cfg.knowledge, memory, fields) +
+      this._fieldsText(memory, fields) +
       "\n\nFor each field, infer what it asks for from its label, question, " +
       "help text, context and type (even when its key is meaningless). Return " +
       '{ "values": {key->value}, "concepts": {key->canonical concept}, ' +
@@ -158,10 +161,12 @@ AIFF.PromptBuilder = class PromptBuilder {
 
   buildSuggest(cfg, memory, field, page) {
     const system =
-      PromptBuilder.SYSTEM_SUGGEST + (cfg.prompt ? `\n\n${cfg.prompt}` : "");
+      PromptBuilder.SYSTEM_SUGGEST +
+      (cfg.prompt ? `\n\n${cfg.prompt}` : "") +
+      this._knowledgeText(cfg.knowledge);
     const user =
       this._pageText(page) +
-      this._fieldsText(cfg.knowledge, memory, [field]) +
+      this._fieldsText(memory, [field]) +
       "\n\nReturn ONLY the value for this single field as plain text.";
     return { system, user };
   }
@@ -169,19 +174,23 @@ AIFF.PromptBuilder = class PromptBuilder {
   buildReview(cfg, memory, fields) {
     const system =
       PromptBuilder.SYSTEM_REVIEW +
-      (cfg.prompt ? `\n\nUser guidance:\n${cfg.prompt}` : "");
+      (cfg.prompt ? `\n\nUser guidance:\n${cfg.prompt}` : "") +
+      this._knowledgeText(cfg.knowledge);
     const user =
-      this._fieldsText(cfg.knowledge, memory, fields) +
+      this._fieldsText(memory, fields) +
       "\n\nEach field's 'currentValue' is what was entered. Return ONLY the " +
       "corrections object — an empty object if everything is correct.";
     return { system, user };
   }
 
-  buildPickOption(field, value) {
+  buildPickOptions(picks) {
+    const list = picks.map(({ field, value }) => ({
+      ...field,
+      desiredValue: value,
+    }));
     const user =
-      `Field:\n${JSON.stringify(field, null, 2)}\n\n` +
-      `Desired value: ${value}\n\n` +
-      "Reply with the single best option, verbatim.";
+      `Fields:\n${JSON.stringify(list, null, 2)}\n\n` +
+      "Return the { key: option } object, each option verbatim.";
     return { system: PromptBuilder.SYSTEM_PICK_OPTION, user };
   }
 
@@ -215,23 +224,35 @@ AIFF.PromptBuilder = class PromptBuilder {
   buildCorrect(cfg, memory, fields) {
     const system =
       PromptBuilder.SYSTEM_CORRECT +
-      (cfg.prompt ? `\n\nUser guidance:\n${cfg.prompt}` : "");
+      (cfg.prompt ? `\n\nUser guidance:\n${cfg.prompt}` : "") +
+      this._knowledgeText(cfg.knowledge);
     const user =
-      this._fieldsText(cfg.knowledge, memory, fields) +
+      this._fieldsText(memory, fields) +
       "\n\nEach field includes a 'problem' explaining why its 'currentValue' " +
       "was rejected. Return a JSON object mapping each key to a corrected value " +
       "that satisfies the field's constraints (pattern, type, options, maxLength).";
     return { system, user };
   }
 
-  _fieldsText(knowledge, memory, fields) {
+  // The knowledge base lives in the system prompt: it is the large part that
+  // stays the same across calls, so providers can cache it as a prefix.
+  _knowledgeText(knowledge) {
+    return knowledge ? `\n\nKnowledge base about the user:\n${knowledge}` : "";
+  }
+  _fieldsText(memory, fields) {
+    // Most-used, then most-recent first, so the facts that keep coming up are
+    // the ones that survive the cap (not whatever happened to be saved first).
     const known = Object.entries(memory)
       .filter(([, v]) => v && v.value)
-      .slice(0, 50)
+      .sort(
+        ([, a], [, b]) =>
+          (b.count || 0) - (a.count || 0) ||
+          (b.lastUsed || 0) - (a.lastUsed || 0),
+      )
+      .slice(0, PromptBuilder.MEMORY_CONTEXT_LIMIT)
       .map(([k, v]) => `${k}: ${v.value}`)
       .join("\n");
     return [
-      knowledge ? `Knowledge base about the user:\n${knowledge}` : "",
       known ? `Previously entered values (key: value):\n${known}` : "",
       `Fields:\n${JSON.stringify(fields, null, 2)}`,
     ]
@@ -257,12 +278,6 @@ AIFF.AutofillService = class AutofillService {
   // or a form with several paragraph answers truncates mid-JSON. 8192 fits
   // every supported provider's output ceiling.
   static LONG_FORM_MAX_TOKENS = 8192;
-
-  static _isLongForm(f) {
-    return (
-      f.type === "textarea" || f.type === "richtext" || (f.maxLength || 0) > 250
-    );
-  }
 
   constructor({ settings, memory, fieldMap, blocks, registry, prompts }) {
     this.settings = settings;
@@ -304,11 +319,14 @@ AIFF.AutofillService = class AutofillService {
     const memory = await this.memory.get();
     const map = await this.fieldMap.get();
     const blocked = (await this.blocks.get())[domain] || {};
+    const cfg = settings.resolve(domain);
     const values = {};
     const sources = {};
     const concepts = {};
     const questions = {};
     const unknown = [];
+    // Saved essay answers held back for the AI; used only if it returns "".
+    const fallbacks = {};
 
     for (const f of fields) {
       // Resolve the field's canonical concept and match memory by it (then by
@@ -318,15 +336,19 @@ AIFF.AutofillService = class AutofillService {
       // The user disabled this fill on this site — never fill it.
       if (blocked[f._concept] || blocked[f.key]) continue;
       const remembered = memory[f._concept] || memory[f.key];
-      if (remembered && remembered.value) {
-        values[f.key] = remembered.value;
+      const saved = remembered && remembered.value;
+      // An essay written for one page rarely fits another (other company,
+      // other role), so long-form fields are re-composed by the AI, which
+      // still sees the saved answer in its memory context.
+      if (saved && !(cfg.hasKey && AIFF.FieldInfo.isLongForm(f))) {
+        values[f.key] = saved;
         sources[f.key] = "memory";
       } else {
+        if (saved) fallbacks[f.key] = saved;
         unknown.push(f);
       }
     }
 
-    const cfg = settings.resolve(domain);
     const usedAI = cfg.hasKey && unknown.length > 0;
     if (usedAI) {
       const results = await Promise.all(
@@ -338,6 +360,11 @@ AIFF.AutofillService = class AutofillService {
         for (const f of r.fields) {
           const q = r.questions[f.key];
           const v = r.values[f.key];
+          if ((v == null || v === "") && fallbacks[f.key]) {
+            values[f.key] = fallbacks[f.key];
+            sources[f.key] = "memory";
+            continue;
+          }
           if (v == null || v === "") {
             // Unfillable: surface the AI's question so the user can be asked,
             // and keep the AI's canonical concept so their answer is saved
@@ -367,8 +394,8 @@ AIFF.AutofillService = class AutofillService {
   // configured, essay fields go to it (with the bigger budget) while short
   // fields stay on the default model — in parallel.
   _batches(cfg, unknown) {
-    const long = unknown.filter(AutofillService._isLongForm);
-    const short = unknown.filter((f) => !AutofillService._isLongForm(f));
+    const long = unknown.filter(AIFF.FieldInfo.isLongForm);
+    const short = unknown.filter((f) => !AIFF.FieldInfo.isLongForm(f));
     if (cfg.longFormModel === cfg.model || !long.length || !short.length) {
       return [
         {
@@ -478,7 +505,7 @@ AIFF.AutofillService = class AutofillService {
       field,
       page,
     );
-    const long = AutofillService._isLongForm(field);
+    const long = AIFF.FieldInfo.isLongForm(field);
     const value = await this._complete(cfg, {
       system,
       user,
@@ -488,16 +515,21 @@ AIFF.AutofillService = class AutofillService {
     return { value: value.trim() };
   }
 
-  // One unmatched select/choice value: ask the AI for the closest allowed
-  // option. The reply only counts when it is verbatim one of the options.
-  async pickOption(domain, field, value) {
+  // Unmatched select/choice values: ask the AI for the closest allowed option.
+  // A reply only counts when it is verbatim one of the options. picks:
+  // [{ field, value }], all in one call instead of one round trip per field.
+  async pickOptions(domain, picks) {
     const settings = await this.settings.load();
     const cfg = settings.resolve(domain);
-    if (!cfg.hasKey) return { option: "" };
-    const { system, user } = this.prompts.buildPickOption(field, value);
-    const reply = (await this._complete(cfg, { system, user })).trim();
-    const options = field.options || [];
-    return { option: options.includes(reply) ? reply : "" };
+    if (!cfg.hasKey || !picks.length) return { options: {} };
+    const { system, user } = this.prompts.buildPickOptions(picks);
+    const ai = await this._completeJson(cfg, { system, user });
+    const options = {};
+    for (const { field } of picks) {
+      const reply = String(ai[field.key] || "").trim();
+      if ((field.options || []).includes(reply)) options[field.key] = reply;
+    }
+    return { options };
   }
 
   // Semantic pass over AI-filled values: does each answer actually address its
@@ -508,7 +540,7 @@ AIFF.AutofillService = class AutofillService {
     if (!cfg.hasKey || !fields.length) return { values: {} };
     const memory = await this.memory.get();
     const { system, user } = this.prompts.buildReview(cfg, memory, fields);
-    const long = fields.some(AutofillService._isLongForm);
+    const long = fields.some(AIFF.FieldInfo.isLongForm);
     const ai = await this._completeJson(cfg, {
       system,
       user,
@@ -649,7 +681,7 @@ AIFF.SiteScriptManager = class SiteScriptManager {
   async _register(id, matches) {
     await this._unregister(id);
     await chrome.scripting.registerContentScripts([
-      { id, matches, js: this.files, runAt: "document_idle" },
+      { id, matches, js: this.files, runAt: "document_idle", allFrames: true },
     ]);
     return { ok: true };
   }
@@ -666,6 +698,15 @@ AIFF.SiteScriptManager = class SiteScriptManager {
   }
   unregister(host) {
     return this._unregister(`site-${host}`);
+  }
+  // Scripts registered by an older version persist across updates without
+  // allFrames, so embedded (iframe) forms on those sites would stay unfilled.
+  async enableAllFramesOnExisting() {
+    const scripts = await chrome.scripting.getRegisteredContentScripts();
+    if (!scripts.length) return;
+    await chrome.scripting.updateContentScripts(
+      scripts.map(({ id }) => ({ id, allFrames: true })),
+    );
   }
   // Passive capture on every page (opt-in "learn on all sites").
   setAll(on) {
@@ -715,12 +756,18 @@ const knowledge = new AIFF.KnowledgeService({
 });
 const curator = new AIFF.MemoryCurator({ settings, memory, registry, prompts });
 const siteScripts = new AIFF.SiteScriptManager(AIFF.CONTENT_SCRIPT_FILES);
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  if (reason === "update")
+    siteScripts
+      .enableAllFramesOnExisting()
+      .catch((e) => console.warn("AIFF allFrames migration failed", e));
+});
 new AIFF.MessageRouter({
   aiAutofill: (m) => autofill.autofill(m.domain, m.fields, m.page),
   aiSuggest: (m) => autofill.suggest(m.domain, m.field, m.page),
   aiCorrect: (m) => autofill.correct(m.domain, m.fields),
   aiReview: (m) => autofill.review(m.domain, m.fields),
-  aiPickOption: (m) => autofill.pickOption(m.domain, m.field, m.value),
+  aiPickOptions: (m) => autofill.pickOptions(m.domain, m.picks),
   consolidateMemory: () => curator.consolidate(),
   // The single writer for memory/fieldMap: content commits only after the user
   // confirms; capture/import/answers remember plainly-keyed values.

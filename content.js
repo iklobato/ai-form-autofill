@@ -138,6 +138,7 @@ AIFF.MemoryCapture = class MemoryCapture {
 // A floating panel that previews proposed values with per-field checkboxes and
 // editable values before anything is written to the form.
 AIFF.PreviewPanel = class PreviewPanel {
+  static TEXTAREA_ROWS = 5;
   constructor() {
     this.el = null;
   }
@@ -242,19 +243,7 @@ AIFF.PreviewPanel = class PreviewPanel {
         color: "#94a3b8",
         marginBottom: "2px",
       });
-      const input = document.createElement("input");
-      input.type = "text";
-      if (item.info.placeholder) input.placeholder = item.info.placeholder;
-      Object.assign(input.style, {
-        width: "100%",
-        boxSizing: "border-box",
-        background: "#111827",
-        color: "#e5e7eb",
-        border: "1px solid #374151",
-        borderRadius: "5px",
-        padding: "5px 6px",
-        font: "inherit",
-      });
+      const input = this._answerControl(item.info);
       row.append(name, input);
       el.appendChild(row);
       return { input, item };
@@ -270,10 +259,11 @@ AIFF.PreviewPanel = class PreviewPanel {
     const skip = this._button("Skip", "#374151");
     ok.addEventListener("click", () => {
       const answers = rows
-        .filter((r) => r.input.value.trim())
-        .map((r) => ({
+        .map((r) => ({ r, value: PreviewPanel._read(r.input).trim() }))
+        .filter(({ value }) => value)
+        .map(({ r, value }) => ({
           field: r.item.field,
-          value: r.input.value.trim(),
+          value,
           item: r.item, // carries the concept so the answer saves reusably
         }));
       this.close();
@@ -306,19 +296,14 @@ AIFF.PreviewPanel = class PreviewPanel {
       overflow: "hidden",
       textOverflow: "ellipsis",
     });
-    const input = document.createElement("input");
-    input.type = "text";
+    // Essays get a textarea: a text input would strip their line breaks,
+    // and those paragraphs are exactly what gets filled.
+    const input = this._styled(
+      AIFF.FieldInfo.isLongForm(item.info) || /\n/.test(item.value)
+        ? this._textarea()
+        : document.createElement("input"),
+    );
     input.value = item.value;
-    Object.assign(input.style, {
-      width: "100%",
-      boxSizing: "border-box",
-      background: "#111827",
-      color: "#e5e7eb",
-      border: "1px solid #374151",
-      borderRadius: "5px",
-      padding: "4px 6px",
-      font: "inherit",
-    });
     wrap.append(name, input);
     const badge = document.createElement("span");
     badge.textContent = item.source === "ai" ? "AI" : "memory";
@@ -331,6 +316,49 @@ AIFF.PreviewPanel = class PreviewPanel {
     return { el: row, checkbox, input, item };
   }
 
+  // Where the user answers a missing field: the field's own options when it
+  // has fixed ones (a free-typed "yes" may match none of them), a textarea
+  // for open questions, else a text input.
+  _answerControl(info) {
+    const options = info.options || [];
+    if (options.length) {
+      const select = document.createElement("select");
+      select.multiple = info.type === "checkbox_group";
+      if (select.multiple) select.size = Math.min(options.length, 5);
+      else select.appendChild(new Option("", ""));
+      for (const o of options) select.appendChild(new Option(o, o));
+      return this._styled(select);
+    }
+    const input = AIFF.FieldInfo.isLongForm(info)
+      ? this._textarea()
+      : document.createElement("input");
+    if (info.placeholder) input.placeholder = info.placeholder;
+    return this._styled(input);
+  }
+  // A multi-select answers a checkbox group as "a, b" (what its fill() takes).
+  static _read(control) {
+    if (!control.multiple) return control.value;
+    return [...control.selectedOptions].map((o) => o.value).join(", ");
+  }
+  _textarea() {
+    const t = document.createElement("textarea");
+    t.rows = PreviewPanel.TEXTAREA_ROWS;
+    t.style.resize = "vertical";
+    return t;
+  }
+  _styled(control) {
+    Object.assign(control.style, {
+      width: "100%",
+      boxSizing: "border-box",
+      background: "#111827",
+      color: "#e5e7eb",
+      border: "1px solid #374151",
+      borderRadius: "5px",
+      padding: "4px 6px",
+      font: "inherit",
+    });
+    return control;
+  }
   _button(label, bg) {
     const b = document.createElement("button");
     b.textContent = label;
@@ -351,6 +379,62 @@ AIFF.PreviewPanel = class PreviewPanel {
 // Watches for fields added after load (wizard steps, lazily rendered forms)
 // and fires the callback when genuinely new ones appear. The extension's own
 // panels never count — the scanner skips [data-aiff-ui].
+// Page-side progress for a fill. The popup closes as soon as the user clicks
+// away, so without this a 10-30s AI call looks like nothing happened.
+AIFF.StatusToast = class StatusToast {
+  static DONE_MS = 4000;
+  static ERROR_MS = 8000;
+  constructor() {
+    this.el = null;
+    this.timer = null;
+  }
+  _ensure() {
+    if (this.el) return this.el;
+    const el = document.createElement("div");
+    el.setAttribute("data-aiff-ui", ""); // never scanned as a form field
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.title = "Click to dismiss";
+    Object.assign(el.style, {
+      position: "fixed",
+      bottom: "16px",
+      right: "16px",
+      zIndex: 2147483647,
+      maxWidth: "320px",
+      background: "#0f172a",
+      color: "#e5e7eb",
+      border: "1px solid #1f2937",
+      borderRadius: "8px",
+      boxShadow: "0 4px 16px rgba(0,0,0,.4)",
+      font: "13px system-ui, sans-serif",
+      padding: "8px 12px",
+      cursor: "pointer",
+    });
+    el.addEventListener("click", () => this.hide());
+    document.body.appendChild(el);
+    this.el = el;
+    return el;
+  }
+  show(text) {
+    clearTimeout(this.timer);
+    this._ensure().textContent = text;
+  }
+  done(text, ms = StatusToast.DONE_MS) {
+    this.show(text);
+    this.timer = setTimeout(() => this.hide(), ms);
+  }
+  error(text) {
+    this.done(text, StatusToast.ERROR_MS);
+  }
+  hide() {
+    clearTimeout(this.timer);
+    if (this.el) {
+      this.el.remove();
+      this.el = null;
+    }
+  }
+};
+
 AIFF.FormObserver = class FormObserver {
   static DEBOUNCE_MS = 800;
 
@@ -390,8 +474,9 @@ AIFF.ContentApp = class ContentApp {
     this.capture = new AIFF.MemoryCapture();
     this.chip = new AIFF.SuggestionChip();
     this.preview = new AIFF.PreviewPanel();
+    this.toast = new AIFF.StatusToast();
     this.observer = new AIFF.FormObserver(this.scanner, () => this._autofill());
-    this._running = false;
+    this._running = null; // the in-flight autofill promise
     // Field keys already shown in an ask prompt this page load, so the same
     // missing field isn't asked again (e.g. on every form mutation).
     this._asked = new Set();
@@ -416,8 +501,11 @@ AIFF.ContentApp = class ContentApp {
 
   // Ask the AI/memory for proposed values for every fillable field.
   async _collectProposals() {
-    const fields = this.scanner.fields();
+    // Only empty fields: a re-run (next wizard step, second click) must never
+    // overwrite what the user already typed or edited.
+    const fields = this.scanner.fields().filter((f) => f.isEmpty());
     if (!fields.length) return { items: [], total: 0 };
+    this.toast.show(`Filling ${AIFF.Text.count(fields.length, "field")}…`);
     const pairs = fields.map((field) => ({ field, info: field.describe() }));
     const resp = await chrome.runtime.sendMessage({
       action: "aiAutofill",
@@ -458,20 +546,23 @@ AIFF.ContentApp = class ContentApp {
     }
     // The proposed value matched no option verbatim ("USA" vs "United States"):
     // ask the AI to pick the closest allowed option and fill that instead.
+    if (!unmatched.length) return filled;
+    let resp;
+    try {
+      resp = await chrome.runtime.sendMessage({
+        action: "aiPickOptions",
+        domain: location.hostname,
+        picks: unmatched.map((it) => ({ field: it.info, value: it.value })),
+      });
+    } catch (e) {
+      console.warn("AIFF option pick failed", e);
+      return filled;
+    }
+    const options = (resp && resp.options) || {};
     for (const it of unmatched) {
-      let resp;
-      try {
-        resp = await chrome.runtime.sendMessage({
-          action: "aiPickOption",
-          domain: location.hostname,
-          field: it.info,
-          value: it.value,
-        });
-      } catch {
-        continue;
-      }
-      if (resp && resp.option && it.field.fill(resp.option)) {
-        it.value = resp.option; // commit what was actually filled
+      const option = options[it.info.key];
+      if (option && it.field.fill(option)) {
+        it.value = option; // commit what was actually filled
         filled++;
       }
     }
@@ -479,19 +570,30 @@ AIFF.ContentApp = class ContentApp {
   }
 
   async _autofill() {
-    if (this._running) return { error: "Autofill already running." };
-    this._running = true;
-    try {
-      return await this._autofillLocked();
-    } finally {
-      this._running = false;
-    }
+    // A call that arrives mid-fill (popup click right after the injection
+    // started an auto-fill) shares that run's result instead of failing.
+    if (!this._running)
+      this._running = this._autofillLocked()
+        .catch((e) => {
+          this.toast.error(`Autofill failed: ${e.message}`);
+          throw e;
+        })
+        .finally(() => {
+          this._running = null;
+        });
+    return this._running;
   }
 
   async _autofillLocked() {
     const proposals = await this._collectProposals();
-    if (proposals.error) return { error: proposals.error };
+    if (proposals.error) {
+      this.toast.error(`Autofill failed: ${proposals.error}`);
+      return { error: proposals.error };
+    }
     if (!proposals.items.length) {
+      // Replace the "Filling…" of this run; a run with no empty fields never
+      // showed one, so it leaves an earlier result on screen.
+      if (proposals.total) this.toast.done("Nothing more I could fill.");
       // Nothing to fill, but required/AI-flagged fields may still need asking.
       await this._finish(proposals.questions, proposals.concepts);
       return { filled: 0, total: proposals.total, message: "Nothing to fill." };
@@ -504,16 +606,20 @@ AIFF.ContentApp = class ContentApp {
       await this._review(proposals.items);
       await this._commit(proposals.items);
       await this._finish(proposals.questions, proposals.concepts);
+      this.toast.done(`Filled ${filled} of ${AIFF.Text.count(proposals.total, "field")}.`);
       return { filled, total: proposals.total, usedAI: proposals.usedAI };
     }
     // Default: let the user review and confirm. Learning happens here, on
     // confirm — not at proposal time — so Cancel/uncheck/edits are respected.
+    this.toast.hide();
     this.preview.show(
       proposals.items,
       async (selected) => {
-        await this._apply(selected);
+        this.toast.show(`Filling ${AIFF.Text.count(selected.length, "field")}…`);
+        const filled = await this._apply(selected);
         await this._commit(selected);
         await this._finish(proposals.questions, proposals.concepts);
+        this.toast.done(`Filled ${filled} of ${AIFF.Text.count(selected.length, "field")}.`);
       },
       (item) => this._block(item),
     );

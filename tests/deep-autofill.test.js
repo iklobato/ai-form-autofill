@@ -144,7 +144,8 @@ async function setup() {
   }
   window.fetch = async (url, opts) => {
     const body = JSON.parse(opts.body);
-    const sys = body.system || "";
+    // The Anthropic provider sends system as cacheable text blocks.
+    const sys = [].concat(body.system || "").map((b) => b.text ?? b).join("");
     const hasTools = !!body.tools;
     let input = {};
     let text = "";
