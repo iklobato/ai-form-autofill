@@ -995,7 +995,7 @@ check(
 );
 check(
   "richtext counts as long-form",
-  ctx.AIFF.AutofillService._isLongForm(editor.describe()) === true,
+  ctx.AIFF.FieldInfo.isLongForm(editor.describe()) === true,
   "richtext not long-form",
 );
 

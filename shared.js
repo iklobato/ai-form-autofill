@@ -90,6 +90,23 @@ AIFF.Text = class Text {
       .trim()
       .replace(/\s+/g, "_");
   }
+  // "1 field", "3 fields".
+  static count(n, noun) {
+    return `${n} ${noun}${n === 1 ? "" : "s"}`;
+  }
+};
+
+// Questions about a field descriptor (FormField.describe()) shared by the
+// worker (model routing) and the page (which control to edit a value in).
+AIFF.FieldInfo = class FieldInfo {
+  static LONG_MAX_LENGTH = 250;
+  static isLongForm(info) {
+    return (
+      info.type === "textarea" ||
+      info.type === "richtext" ||
+      (info.maxLength || 0) > FieldInfo.LONG_MAX_LENGTH
+    );
+  }
 };
 
 // Base wrapper over chrome.storage.local for a single key.

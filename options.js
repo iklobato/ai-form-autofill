@@ -254,7 +254,18 @@ AIFF.OptionsController = class OptionsController {
     this.memoryStore = new AIFF.MemoryStore();
     this.blockStore = new AIFF.BlockStore();
     this.siteCards = [];
+    this.dirty = false;
   }
+
+  // Inputs Save does not own: search/filter boxes, staged actions, and the
+  // learn-everywhere toggle (it saves itself on change).
+  static NOT_SETTINGS = new Set([
+    "memSearch",
+    "memGroupBy",
+    "kbUrl",
+    "newDomain",
+    "learnAll",
+  ]);
 
   init() {
     this.$ = (s) => document.querySelector(s);
@@ -268,6 +279,7 @@ AIFF.OptionsController = class OptionsController {
     this.$("#kbFetch").addEventListener("click", () => this._fetchKb());
     this.$("#learnAll").addEventListener("change", () => this._setLearnAll());
     this.$("#save").addEventListener("click", () => this._save());
+    this._trackChanges();
     this.$("#clearMem").addEventListener("click", () => this._clearMem());
     this.$("#memMerge").addEventListener("click", () => this._mergeMem());
     this.$("#memSearch").addEventListener("input", (e) =>
@@ -467,6 +479,35 @@ AIFF.OptionsController = class OptionsController {
       return;
     this._appendCard(domain, {});
     this.$("#newDomain").value = "";
+    this._setDirty(true);
+  }
+
+  // Save is manual (it replaces the whole memory store, so it must not race
+  // live captures on a timer); instead, never lose an edit silently: show
+  // that changes are pending, warn before closing, and save on Cmd/Ctrl+S.
+  _trackChanges() {
+    const panels = this.$("#panels");
+    const onEdit = (e) => {
+      if (!OptionsController.NOT_SETTINGS.has(e.target.id)) this._setDirty(true);
+    };
+    panels.addEventListener("input", onEdit);
+    panels.addEventListener("change", onEdit);
+    panels.addEventListener("click", (e) => {
+      if (e.target.closest(".remove")) this._setDirty(true); // site card removed
+    });
+    window.addEventListener("beforeunload", (e) => {
+      if (this.dirty) e.preventDefault();
+    });
+    document.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        this._save();
+      }
+    });
+  }
+  _setDirty(dirty) {
+    this.dirty = dirty;
+    this.$("#saved").textContent = dirty ? "Unsaved changes" : "";
   }
 
   _collectSites() {
@@ -500,6 +541,7 @@ AIFF.OptionsController = class OptionsController {
       chrome.runtime.sendMessage({ action: "setMemory", memory }),
     ]);
     this._renderMemory(memory);
+    this.dirty = false;
     const saved = this.$("#saved");
     saved.textContent = "Saved.";
     setTimeout(() => (saved.textContent = ""), 1500);

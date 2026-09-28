@@ -279,12 +279,6 @@ AIFF.AutofillService = class AutofillService {
   // every supported provider's output ceiling.
   static LONG_FORM_MAX_TOKENS = 8192;
 
-  static _isLongForm(f) {
-    return (
-      f.type === "textarea" || f.type === "richtext" || (f.maxLength || 0) > 250
-    );
-  }
-
   constructor({ settings, memory, fieldMap, blocks, registry, prompts }) {
     this.settings = settings;
     this.memory = memory;
@@ -346,7 +340,7 @@ AIFF.AutofillService = class AutofillService {
       // An essay written for one page rarely fits another (other company,
       // other role), so long-form fields are re-composed by the AI, which
       // still sees the saved answer in its memory context.
-      if (saved && !(cfg.hasKey && AutofillService._isLongForm(f))) {
+      if (saved && !(cfg.hasKey && AIFF.FieldInfo.isLongForm(f))) {
         values[f.key] = saved;
         sources[f.key] = "memory";
       } else {
@@ -400,8 +394,8 @@ AIFF.AutofillService = class AutofillService {
   // configured, essay fields go to it (with the bigger budget) while short
   // fields stay on the default model — in parallel.
   _batches(cfg, unknown) {
-    const long = unknown.filter(AutofillService._isLongForm);
-    const short = unknown.filter((f) => !AutofillService._isLongForm(f));
+    const long = unknown.filter(AIFF.FieldInfo.isLongForm);
+    const short = unknown.filter((f) => !AIFF.FieldInfo.isLongForm(f));
     if (cfg.longFormModel === cfg.model || !long.length || !short.length) {
       return [
         {
@@ -511,7 +505,7 @@ AIFF.AutofillService = class AutofillService {
       field,
       page,
     );
-    const long = AutofillService._isLongForm(field);
+    const long = AIFF.FieldInfo.isLongForm(field);
     const value = await this._complete(cfg, {
       system,
       user,
@@ -546,7 +540,7 @@ AIFF.AutofillService = class AutofillService {
     if (!cfg.hasKey || !fields.length) return { values: {} };
     const memory = await this.memory.get();
     const { system, user } = this.prompts.buildReview(cfg, memory, fields);
-    const long = fields.some(AutofillService._isLongForm);
+    const long = fields.some(AIFF.FieldInfo.isLongForm);
     const ai = await this._completeJson(cfg, {
       system,
       user,
