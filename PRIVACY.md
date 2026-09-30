@@ -1,6 +1,6 @@
 # Privacy Policy — AI Form Autofill
 
-_Last updated: 2026-06-10_
+_Last updated: 2026-09-30_
 
 AI Form Autofill ("the extension") helps you fill web forms using an AI provider
 you choose. This policy explains what data the extension handles and where it
@@ -59,9 +59,16 @@ The extension requests access to a website only when you act:
   one site, so it can fill on page load. You can revoke this anytime in
   `chrome://extensions`.
 - **Build knowledge base from a URL** asks for access to the URL you entered.
+- **Allow access to the embedded form** (shown in the popup when a form sits in
+  a frame from another site) asks for access to that frame's site only.
+- **Learn on all sites** (off by default, in Options) asks for access to all
+  sites. While it is on, the extension saves values you type into forms on any
+  site, with the same sensitive-field exclusions, so it can fill them later.
+  Captured values stay on your device; they reach your AI provider only as
+  context for a fill or a suggestion.
 
-It does not read pages in the background, track your browsing, or collect browsing
-history.
+Apart from that opt-in capture, it does not read pages in the background. It
+never tracks your browsing or collects browsing history.
 
 ## What we do not do
 
