@@ -285,6 +285,15 @@ AIFF.PreviewPanel = class PreviewPanel {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = true;
+    // Pages often style every `input` (e.g. width: 100%); that would stretch
+    // the checkbox across the row and squeeze the value out of sight.
+    Object.assign(checkbox.style, {
+      flex: "0 0 auto",
+      width: "auto",
+      height: "auto",
+      margin: "0",
+      padding: "0",
+    });
     const wrap = document.createElement("div");
     Object.assign(wrap.style, { flex: "1", minWidth: "0" });
     const name = document.createElement("div");
