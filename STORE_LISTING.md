@@ -1,9 +1,9 @@
 # Chrome Web Store listing: AI Form Autofill
 
 The texts submitted with version 1.3.0 on 2026-09-30 (item
-`eipchmghhpnfdlpcbkhgbndmkacieppe`). Version 1.3.1 (2026-10-06) was a new
-package only; no listing change was recorded with it. Sections map to the
-dashboard fields. Keep this file in sync when the listing changes.
+`eipchmghhpnfdlpcbkhgbndmkacieppe`). Versions 1.3.1 and 1.3.2 (both
+2026-10-06) were new packages only; no listing change was recorded with them.
+Sections map to the dashboard fields. Keep this file in sync when the listing changes.
 
 The description's last line ("sensitive fields are never saved or sent") is
 true only from 1.3.1: in 1.3.0 a text field such as "Social security number"
@@ -96,7 +96,8 @@ No remote code is executed. All logic ships in the package. The extension only m
   website content.
   - Open point: the visible page text is sent to the AI provider to tailor
     answers. It was left unchecked as "website content" because it is used only
-    to fill that form. If the review objects, check it and resubmit.
+    to fill that form. The 1.3.1 and 1.3.2 reviews passed with it
+    unchecked (the 1.3.0 outcome was not recorded). If a later review objects, check it and resubmit.
 
 Certifications (all three checked):
 - I do not sell or transfer user data to third parties, outside of the approved

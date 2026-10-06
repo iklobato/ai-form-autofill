@@ -28,6 +28,12 @@ Releases are uploaded by hand in the
    Note its `shasum -a 256` in STATUS.md.
 5. In the dashboard, open the item, go to **Package**, upload the zip, and
    submit for review. Then record the version and date in STATUS.md.
+6. When the "published" email arrives, check what the store really serves:
+   download
+   `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=153.0&acceptformat=crx2,crx3&x=id%3Deipchmghhpnfdlpcbkhgbndmkacieppe%26uc`,
+   unzip it (`unzip` reads a crx), and compare it with main. Only `update_url`
+   in the manifest and a `_metadata` folder should differ. Run the e2e suite
+   on it with `AIFF_EXTENSION_SRC`, then mark the version live in STATUS.md.
 
 Listing text, screenshots and the privacy policy are edited in the dashboard.
 
