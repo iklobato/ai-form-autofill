@@ -88,6 +88,15 @@ test("A1 popup button opens the preview and reports the count", async () => {
   assert.equal(rows.length, 11);
 });
 
+test("A1b popup shows the installed version", async () => {
+  await h.reset({});
+  await h.open(JOB);
+  const popup = await h.popup(JOB);
+  const { version } = require("../../manifest.json");
+  assert.match(version, /^\d+\.\d+\.\d+$/);
+  assert.equal(await popup.textContent("#version"), `v${version}`);
+});
+
 test("A2 popup toggle turns on auto-fill: access asked, script registered, fills on load", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   await h.open(JOB);
@@ -345,6 +354,51 @@ test("C6 one confirmed fill counts as one use", async () => {
   await ui.clickPanel(page, "Fill selected");
   await settle(1500);
   assert.equal((await h.storage("memory")).first_name.count, 4);
+});
+
+test("C7 ARIA radios and checkboxes (Google Forms markup) are read and filled", async () => {
+  await h.reset({
+    settings: KEYED,
+    memory: { email: { value: "alex@example.com" } },
+    plan: {
+      values: [
+        ["^Name", "Alex Rivera"],
+        ["English", "Fluent"],
+        ["clouds", "AWS, GCP"],
+        ["backend technologies", "Go, Python, PostgreSQL"],
+      ],
+    },
+  });
+  const url = `${SHOP}/gforms.html`;
+  const page = await h.open(url);
+  await h.popupFill(url);
+  const fields = (await h.calls("autofill"))[0].fields;
+  const byLabel = Object.fromEntries(fields.map((f) => [f.label, f]));
+  assert.deepEqual(
+    [byLabel["Level English"].type, byLabel["Level English"].options],
+    ["radio_group", ["Basic", "Intermediate", "Advanced", "Fluent"]],
+  );
+  assert.deepEqual(
+    [byLabel["Which clouds have you used?"].type, byLabel["Which clouds have you used?"].options],
+    ["checkbox_group", ["AWS", "GCP", "Azure"]],
+  );
+  await ui.clickPanel(page, "Fill selected");
+  await settle();
+  const checked = (sel) =>
+    page.$$eval(sel, (els) =>
+      els.filter((e) => e.getAttribute("aria-checked") === "true").map((e) => e.getAttribute("aria-label")),
+    );
+  assert.deepEqual(await checked("[role=radio]"), ["Fluent"]);
+  assert.deepEqual(await checked("[role=checkbox]"), ["AWS", "GCP"]);
+  assert.deepEqual(await ui.values(page, { name: "input[aria-labelledby=q1]", email: "input[aria-labelledby=q2]" }), {
+    name: "Alex Rivera",
+    email: "alex@example.com",
+  });
+
+  // A second run sees the answered choices as filled and leaves them alone.
+  await h.popupFill(url);
+  const labels = (await ui.previewRows(page)).map((r) => r.label);
+  assert.ok(!labels.includes("Level English"));
 });
 
 test("D1 short fields with saved values fill with zero AI calls", async () => {
