@@ -4,6 +4,10 @@ _Last updated: 2026-10-06_
 
 ## Where it stands
 
+- **Version 1.3.2** uploaded on 2026-10-06 (zip sha256
+  `4db46ff2d96fc56216447dda223dc79872a2878d22783e923e3ad791fb2ca32a`), **pending
+  review**. Adds the version in the popup and ARIA radios/checkboxes (Google
+  Forms). Same permissions as 1.3.1; e2e 47/47 and 216 unit checks on the zip.
 - **Version 1.3.1 is live** on the Chrome Web Store (review passed, store email
   on 2026-10-06; visibility Public). Item ID `eipchmghhpnfdlpcbkhgbndmkacieppe`:
   https://chromewebstore.google.com/detail/eipchmghhpnfdlpcbkhgbndmkacieppe
@@ -16,7 +20,7 @@ _Last updated: 2026-10-06_
   support page and privacy policy. The full history was scanned for keys and
   tokens first; none found.
 - Releases are **manual** (see PUBLISHING.md). The next upload must be at least
-  1.3.2.
+  1.3.3.
 - 1.3.1 carries every fix merged since 1.3.0 (PRs #6 to #12), including
   sensitive fields kept away from the AI and support for Claude Sonnet 5.5 /
   Opus 5.5 / Fable 5.1. The same zip passed 45/45 e2e tests and 214 unit checks
@@ -43,6 +47,10 @@ _Last updated: 2026-10-06_
 | #11 | Status after the validation run. |
 | #12 | Version 1.3.1. |
 | #13 | Status records the 1.3.1 upload. |
+| #14 | Project docs brought up to date after 1.3.1. |
+| #15 | Guard against new required permissions; how installed copies update. |
+| #16 | Version in the popup; ARIA radios/checkboxes (Google Forms); headless e2e. |
+| #17 | Version 1.3.2. |
 
 ## What we found (and fixed)
 
@@ -158,14 +166,12 @@ _Last updated: 2026-10-06_
 
 ## Next steps
 
-1. Still unchecked on the store-installed copy: the permission prompt for an
-   embedded form (an unpacked load showed none). A test browser cannot install
-   from the store, so this needs an install in a normal Chrome profile.
-2. Next upload is 1.3.2. `node test-formats.js` now fails if it adds a required
-   permission, which would disable the extension for every user until they
-   accept.
-3. With an Anthropic key: run `tests/e2e/smoke-real.test.js` against
-   api.anthropic.com (only the OpenRouter route was run).
+1. Wait for the 1.3.2 review email. Once live, confirm it by fetching the
+   update-server crx and comparing it with main (see the 1.3.1 note above).
+   If rejected, fix what it names and resubmit as 1.3.3.
+2. Still unchecked on a store-installed copy: the permission prompt for an
+   embedded form (an unpacked load showed none).
+3. A live Google Form (needs a form that does not require sign-in).
 
 ## Still open (not scheduled)
 
