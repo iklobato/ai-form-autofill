@@ -36,7 +36,9 @@ _Last updated: 2026-10-06_
 | #5 | Privacy policy covers "Learn on all sites" and the embedded-form access prompt. |
 | #6 | End-to-end suite `tests/e2e`: the real extension in Chromium with a scripted fake AI, every feature; plus a real-API smoke test. |
 | #7 | Six bugs from that suite fixed (below); OpenRouter caches the system prompt for Claude models. |
-| #8 | (open) The suggestion chip stays when focus moves to the next field. |
+| #8 | The suggestion chip stays when focus moves to the next field. |
+| #9 | README, store listing and this status file brought up to date. |
+| #10 | Claude Sonnet 5.5 / Opus 5.5 / Fable 5.1 work (no forced tool call); tests for the unsaved-changes prompt and the release zip; the old deep-autofill test runs again. |
 
 ## What we found (and fixed)
 
@@ -80,17 +82,30 @@ _Last updated: 2026-10-06_
 
 ## Not verified
 
-- Chrome's real permission prompt for the embedded-form button (tests granted
-  access through the manifest instead).
-- The `beforeunload` warning dialog in Settings (only the "Unsaved changes" label
-  was checked).
-- The Anthropic provider against the real API (no key was available): its prompt
-  caching is still not measured. Real calls ran on 2026-10-06 for OpenAI and
-  OpenRouter (`gpt-4o-mini`, `anthropic/claude-sonnet-5.5`). `gpt-4o-mini` on
-  OpenAI left the cover letter empty in 2 of 3 runs before the context fix and
-  wrote it in 1 of 1 after; too few runs to call it a rate.
-- `tests/deep-autofill.test.js` is still not run (needs Playwright in the repo);
-  `tests/e2e` covers the same flows without it.
+- **api.anthropic.com itself** (no Anthropic key). The Anthropic provider's
+  exact requests were run against real Claude through OpenRouter's
+  Anthropic-compatible `/v1/messages` on 2026-10-06: Sonnet 4.6 and Sonnet 5.5
+  fill the test form and read the cache on a repeat fill (3,172 and 3,985
+  tokens). Opus 5.5 and Fable 5.1 were not run.
+- **Chrome's permission prompt as a repeatable test.** One scripted run
+  (macOS accessibility) saw the real prompt for "Learn on all sites" ("Read and
+  change all your data on all websites") and Allow granted it; the test was not
+  kept because it passed about 1 run in 5 on a machine in use. Single-site
+  requests (the embedded-form button) were granted with no prompt in Chrome for
+  Testing 153 for an unpacked extension; the store build was not checked.
+- **Answer quality across many runs.** `gpt-4o-mini` on OpenAI left the cover
+  letter empty in 2 of 3 runs before the context fix and wrote it in 1 of 1
+  after; too few runs to call it a rate.
+
+## Verified on 2026-10-06
+
+- `node test-formats.js`: 214 checks. `node --test tests/e2e/extension.test.js`:
+  45 tests, also run against the unzipped release zip from PUBLISHING.md.
+- The `beforeunload` prompt in Settings (test H1b).
+- `tests/deep-autofill.test.js` passes (with Playwright from the npx cache:
+  `NODE_PATH=<npx playwright node_modules>` and a server on 8731).
+- Every file the manifest, HTML pages and scripts load is in the release zip
+  list.
 
 ## Known gaps
 
