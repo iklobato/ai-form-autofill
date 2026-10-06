@@ -27,8 +27,9 @@ gaps and next steps live in [STATUS.md](STATUS.md).
    API call. **Long fields** (textarea, rich text, `maxLength > 250`) always go to
    the AI, so an essay written for one company is not pasted into another; the
    saved answer is sent as context and used only if the AI returns nothing.
-6. **AI for the rest.** Unknown fields go to your provider. Essay fields can use a
-   separate **long-form model** with a bigger output budget (8192 tokens).
+6. **AI for the rest.** Unknown fields go to your provider in one call. Essay
+   fields can use a separate **long-answer model** with a bigger output budget
+   (8192 tokens); then short and essay fields go out as two calls in parallel.
 7. **Preview (default).** A panel shows every proposed value with a checkbox, an
    editable value (a textarea for long answers, so paragraphs survive), its
    source (`memory` or `AI`) and a 🚫 button to never fill that field on this site.
@@ -42,7 +43,8 @@ gaps and next steps live in [STATUS.md](STATUS.md).
     open a small panel with the AI's question. Fields with fixed choices show
     their own options; open questions get a textarea. Answers are filled and saved.
 11. **Learn.** Confirmed values are saved under their concept; values you type are
-    captured too (debounced, sensitive fields excluded).
+    captured too (debounced). Sensitive fields, one-character values, the
+    extension's own fills and anything typed in its panels are not captured.
 
 A status toast on the page reports progress ("Filling 5 fields…"), the result or
 the error, because the popup closes as soon as you click away.
@@ -72,8 +74,9 @@ key (30 s timeout). Keys, settings and saved values stay in
   public page (résumé, portfolio) and extracts 50+ field/value pairs, including
   aliases and parts (full name to first/last). Works best on static pages; login
   or JS-rendered pages return little text.
-- **Per-website settings:** provider, model, long-form model, instructions and
-  knowledge base per domain, layered on top of the global ones.
+- **Per-website settings:** provider, model, long-answer model, instructions and
+  knowledge base per domain, layered on top of the global ones. A site that uses
+  another provider gets that provider's default model, not the global one.
 - **Saved data:** view, edit, search, group by site, remove, merge duplicate keys
   with AI, and re-enable blocked fills.
 - **Learn on all sites** (off by default): captures typed values on every site;
@@ -93,10 +96,12 @@ key (30 s timeout). Keys, settings and saved values stay in
 |----------|-----------|----------------|
 | Anthropic | `sk-ant-...` | `claude-opus-4-8`, `claude-sonnet-4-6` |
 | OpenAI | `sk-...` | `gpt-4o`, `gpt-4o-mini`, `o4-mini` |
-| OpenRouter | `sk-or-...` | `openai/gpt-4o`, `anthropic/claude-sonnet-4-6` |
+| OpenRouter | `sk-or-...` | `openai/gpt-4o-mini`, `anthropic/claude-sonnet-5.5` |
 
 Without a key only saved values fill. Anthropic is called from the browser with
-`anthropic-dangerous-direct-browser-access`.
+`anthropic-dangerous-direct-browser-access`. The two OpenRouter models above were
+run against the real API on 2026-10-06; a fill of the test job form cost about
+$0.001 with `gpt-4o-mini` and $0.02 with Claude Sonnet 5.5.
 
 ## Code map
 
@@ -107,7 +112,7 @@ Without a key only saved values fill. Anthropic is called from the browser with
 | `formdom.js` | Page side: field wrappers (`FormField`, `ChoiceGroupField`, `RichTextField`), `FormScanner`, `PageContext` |
 | `content.js` | Page side: `ContentApp` flow, preview/ask panel, chip, toast, capture, wizard observer |
 | `background.js` | Service worker: `PromptBuilder`, `AutofillService`, knowledge extraction, memory merge, site script registration, message router |
-| `providers.js` | HTTP client and the Anthropic / OpenAI-compatible providers |
+| `providers.js` | HTTP client and the providers: Anthropic, OpenAI-compatible (OpenAI), OpenRouter (adds the cache mark for Claude) |
 | `popup.*`, `options.*` | Toolbar popup and settings page |
 
 ## Tests
@@ -119,8 +124,10 @@ Without a key only saved values fill. Anthropic is called from the browser with
 - `node --test tests/e2e/extension.test.js`: the real extension in a real
   Chromium, every feature (popup, auto-fill, wizard, iframes, preview, ask panel,
   chip, capture, import, settings, saved data, providers, errors). The AI is a
-  scripted fake inside the service worker, so it runs offline and free. No repo
-  dependency: Playwright comes from the npx cache (or `PLAYWRIGHT_PATH`).
+  scripted fake inside the service worker, so it runs offline and free (44 tests,
+  about 80 s). No repo dependency: Playwright comes from the npx cache (or
+  `PLAYWRIGHT_PATH`; `npx playwright install chromium` once if none is found).
+  Tests marked `todo` pin known bugs.
 - `node --test tests/e2e/smoke-real.test.js`: one fill per provider against the
   real APIs, for each of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
   `OPENROUTER_API_KEY` that is set; Claude models also check the cache read.
@@ -139,3 +146,9 @@ and the listing texts in [STORE_LISTING.md](STORE_LISTING.md).
 - Chrome does not expose its saved autofill profiles to extensions. Let Chrome
   fill a form, then use **Import autofill from page**.
 - File inputs, passwords and sensitive fields are never filled or stored.
+- If the AI call fails (bad key, rate limit, timeout), nothing is filled, not even
+  fields that have a saved value; the toast shows the error.
+- On an auto-fill site, a form embedded from another site is not filled on page
+  load, only when you click **Autofill this page**.
+- Chrome's own permission prompts and the "Leave site?" warning in Settings are
+  not covered by the automated tests.
