@@ -1,116 +1,154 @@
 # AI Form Autofill (Chrome extension)
 
-Auto-fills web forms using AI, learns from what you type, and suggests values.
-You can configure a different model, instructions, and knowledge base per website.
+Fills web forms with AI, learns from what you type, and suggests values. You can
+set a different provider, model, instructions and knowledge base per website.
 
-## How it works
+Chrome Web Store item `eipchmghhpnfdlpcbkhgbndmkacieppe`. Release state, known
+gaps and next steps live in [STATUS.md](STATUS.md).
 
-- **Memory (free, instant):** every non-sensitive value you type into a form is
-  saved locally, keyed by a normalized field name. The next time a similar field
-  appears anywhere, it can be filled from memory with no API call. These learned
-  values also feed the AI as context, so it can fill differently-shaped forms.
-- **Concept correlation:** every field is mapped to a canonical *concept* (e.g.
-  `username`, `email`, `first_name`) from its label/autocomplete/context — not its
-  raw name. So an opaquely-named field (`fld_01`) labelled "Username", a `login`
-  field, and a `user name` field all resolve to the same concept and share one
-  stored value across forms. When the AI fills an opaque field, it also labels the
-  concept, which is remembered so the same field shape fills instantly next time.
-- **Sensitive fields are never learned:** passwords, credit-card numbers, CVV/CSC,
-  expiry, OTP/one-time codes, SSN, account/routing numbers, API keys/secrets, etc.
-  are detected (by field type, `autocomplete`, and name/label) and excluded from
-  capture. They are also never sent to the AI.
-- **AI fill:** for fields it hasn't seen, the extension sends the field list plus
-  your knowledge base to your chosen AI provider and fills in what it returns.
-  Memory values are always used first; AI only handles the gaps.
-- **Auto-fill (default on):** forms fill automatically on page load. Turn off
-  **Auto-fill this site automatically** in the popup (or **Auto-fill
-  automatically on all sites** in Options) and clicking **Autofill this page**
-  then shows a preview panel of the proposed values — each with a checkbox and an
-  editable value — so you confirm what gets written before anything is filled.
-- **Import browser autofill:** click **Import autofill from page** in the popup to
-  harvest values already on the form — including ones Chrome autofilled — into your
-  saved values. Fields are keyed by their standardized `autocomplete` token
-  (`email`, `tel`, `given-name`, `address-line1`, …) when present, so a value
-  captured on one site fills the matching field on any other site.
-- **Inline suggestions:** focus an empty field to get a small chip with the
-  remembered value and a `✨ AI` button for a one-off AI suggestion.
-- **Verify & correct:** after filling, it re-reads the form and, for any field that
-  fails the page's validation (bad format, required-but-empty), asks the AI for a
-  corrected value and re-fills — up to two rounds.
-- **Ask when unsure:** required fields the AI still couldn't fill get a short inline
-  prompt asking you for the value; your answer is filled and remembered, so the
-  next form already knows it.
+## How a fill works
 
-Everything (API key, settings, saved values) is stored in `chrome.storage.local`
-on your machine. Nothing is sent anywhere except the AI API you configure.
+1. **Trigger.** Click the toolbar icon, then **Autofill this page**. On a site
+   where you turned on **Auto-fill this site automatically**, it also runs on page
+   load and again as new fields appear (wizard steps).
+2. **Every frame.** The popup injects into all frames of the tab, so forms
+   embedded from another site (Greenhouse, Lever inside a careers page) are
+   reached. If such a frame is blocked, the popup offers **Allow access to the
+   embedded form**, which asks for access to that one site.
+3. **Scan.** Only **empty** fillable fields are considered, so a second run never
+   overwrites what you typed. Supported: text-like inputs, textareas, selects,
+   radio groups, checkbox groups, single checkboxes and `contenteditable` editors.
+   Passwords, file inputs and sensitive fields are skipped.
+4. **Match each field to a concept** (`email`, `first_name`, `job_title`, ...):
+   learned field map first, then the `autocomplete` token, then label/placeholder
+   heuristics. The same meaning shares one stored value across sites, even when
+   the field names differ.
+5. **Memory first.** A short field with a saved value is filled from memory: no
+   API call. **Long fields** (textarea, rich text, `maxLength > 250`) always go to
+   the AI, so an essay written for one company is not pasted into another; the
+   saved answer is sent as context and used only if the AI returns nothing.
+6. **AI for the rest.** Unknown fields go to your provider in one call. Essay
+   fields can use a separate **long-answer model** with a bigger output budget
+   (8192 tokens); then short and essay fields go out as two calls in parallel.
+7. **Preview (default).** A panel shows every proposed value with a checkbox, an
+   editable value (a textarea for long answers, so paragraphs survive), its
+   source (`memory` or `AI`) and a 🚫 button to never fill that field on this site.
+   On auto-fill sites values are written directly and then a review pass asks the
+   AI to check that each answer fits its question.
+8. **Options that did not match.** A value like "USA" for a select offering
+   "United States" is resolved by one AI call for all such fields.
+9. **Verify and correct.** Fields that fail the page's own validation are sent
+   back to the AI with the error, up to two rounds.
+10. **Ask when unsure.** Required fields still empty, and fields the AI flagged,
+    open a small panel with the AI's question. Fields with fixed choices show
+    their own options; open questions get a textarea. Answers are filled and saved.
+11. **Learn.** Confirmed values are saved under their concept; values you type are
+    captured too (debounced). Sensitive fields, one-character values, the
+    extension's own fills and anything typed in its panels are not captured.
+
+A status toast on the page reports progress ("Filling 5 fields…"), the result or
+the error, because the popup closes as soon as you click away.
+
+## What is sent to the AI
+
+- **System prompt:** the task instructions, your global and per-site instructions,
+  and your knowledge base. It is the part that repeats across calls, so it is
+  marked cacheable (`cache_control`) for Claude: by the Anthropic provider, and
+  by the OpenRouter provider for `anthropic/` models.
+- **User message:** the page (URL, title, up to 12 headings, up to 6000 chars of
+  visible text), up to 50 saved values ranked by use count then recency, and the
+  field descriptions (label, type, placeholder, help text, nearby question and
+  heading, options, constraints).
+
+Calls go straight from the browser to Anthropic, OpenAI or OpenRouter with your
+key (30 s timeout). Keys, settings and saved values stay in
+`chrome.storage.local`. See [PRIVACY.md](PRIVACY.md).
+
+## Other features
+
+- **Inline chip:** focus an empty field for the remembered value and a `✨ AI`
+  one-off suggestion.
+- **Import autofill from page:** saves values already on the form, including ones
+  Chrome autofilled, keyed by their `autocomplete` token.
+- **Build the knowledge base from a URL** (Settings → Knowledge base): fetches a
+  public page (résumé, portfolio) and extracts 50+ field/value pairs, including
+  aliases and parts (full name to first/last). Works best on static pages; login
+  or JS-rendered pages return little text.
+- **Per-website settings:** provider, model, long-answer model, instructions and
+  knowledge base per domain, layered on top of the global ones. A site that uses
+  another provider gets that provider's default model, not the global one.
+- **Saved data:** view, edit, search, group by site, remove, merge duplicate keys
+  with AI, and re-enable blocked fills.
+- **Learn on all sites** (off by default): captures typed values on every site;
+  asks for access to all sites.
+- Settings page marks **Unsaved changes**, warns before closing, saves on
+  Cmd/Ctrl+S. Save is manual on purpose: it replaces the whole memory store and
+  must not race live captures.
 
 ## Install (load unpacked)
 
-1. Open `chrome://extensions`.
-2. Turn on **Developer mode** (top right).
-3. Click **Load unpacked** and select this folder.
-4. Open the extension's **Settings** (popup → "Settings & knowledge base") and add
-   a key for at least one provider (Anthropic, OpenAI, and/or OpenRouter). Pick a
-   default provider and model. Optionally set global instructions, a global
-   knowledge base, and per-site overrides.
-
-## Providers
-
-The extension supports three providers; set a key for the ones you use:
+1. Open `chrome://extensions` and turn on **Developer mode**.
+2. **Load unpacked** and select this folder.
+3. Open **Settings & knowledge base** from the popup, add a key for at least one
+   provider, pick a default provider and model, and fill your knowledge base.
 
 | Provider | Key format | Example models |
 |----------|-----------|----------------|
 | Anthropic | `sk-ant-...` | `claude-opus-4-8`, `claude-sonnet-4-6` |
 | OpenAI | `sk-...` | `gpt-4o`, `gpt-4o-mini`, `o4-mini` |
-| OpenRouter | `sk-or-...` | `openai/gpt-4o`, `anthropic/claude-sonnet-4-6`, `google/gemini-2.5-pro` |
+| OpenRouter | `sk-or-...` | `openai/gpt-4o-mini`, `anthropic/claude-sonnet-5.5` |
 
-Choose a **default provider** globally, and override the provider/model per domain
-under **Per-website settings**. OpenAI and OpenRouter use the OpenAI-compatible
-`chat/completions` API; Anthropic uses the Messages API. All calls go directly
-from your browser to the provider — no intermediary server.
+Without a key only saved values fill. Anthropic is called from the browser with
+`anthropic-dangerous-direct-browser-access`. The two OpenRouter models above were
+run against the real API on 2026-10-06; a fill of the test job form cost about
+$0.001 with `gpt-4o-mini` and $0.02 with Claude Sonnet 5.5.
 
-## Use
+## Code map
 
-- Click the toolbar icon → **Autofill this page**.
-- Or just start filling forms; values are remembered for next time.
-- Focus an empty field for an inline suggestion chip.
+| File | Role |
+|------|------|
+| `manifest.json` | MV3 manifest: `storage`, `activeTab`, `scripting`, provider hosts; all other sites optional |
+| `shared.js` | Shared by every context: storage stores, settings resolution, `SensitivePolicy`, `ConceptResolver`, `FieldInfo`, `FrameReplies` |
+| `formdom.js` | Page side: field wrappers (`FormField`, `ChoiceGroupField`, `RichTextField`), `FormScanner`, `PageContext` |
+| `content.js` | Page side: `ContentApp` flow, preview/ask panel, chip, toast, capture, wizard observer |
+| `background.js` | Service worker: `PromptBuilder`, `AutofillService`, knowledge extraction, memory merge, site script registration, message router |
+| `providers.js` | HTTP client and the providers: Anthropic, OpenAI-compatible (OpenAI), OpenRouter (adds the cache mark for Claude) |
+| `popup.*`, `options.*` | Toolbar popup and settings page |
 
-## Build your knowledge base from a URL
+## Tests
 
-In **Settings → Knowledge base**, paste a URL to a page about you (résumé,
-portfolio, public profile) and click **Fetch & fill**. The extension fetches the
-page and asks the AI to extract a broad **field → value map (50+ entries)** —
-canonical fields plus common aliases (email / e-mail / email address) and
-components (name → first/last, address → line1/city/state/postal code/country).
-Those values are seeded straight into your **Saved values**, so forms fill
-instantly from them, and a readable copy is added to the knowledge base textarea
-for review. Coverage comes from aliases and components of real data on the page —
-it won't invent emails, phone numbers, or IDs that aren't there.
+- `node test-formats.js`: no dependencies. Runs the real `shared.js`,
+  `formdom.js`, `providers.js` and `background.js` against ~66 field formats plus
+  service checks (routing, reuse, ranking, caching, option picking, frame
+  merging). 213 checks at the time of writing.
+- `node --test tests/e2e/extension.test.js`: the real extension in a real
+  Chromium, every feature (popup, auto-fill, wizard, iframes, preview, ask panel,
+  chip, capture, import, settings, saved data, providers, errors). The AI is a
+  scripted fake inside the service worker, so it runs offline and free (44 tests,
+  about 80 s). No repo dependency: Playwright comes from the npx cache (or
+  `PLAYWRIGHT_PATH`; `npx playwright install chromium` once if none is found).
+  Tests marked `todo` pin known bugs.
+- `node --test tests/e2e/smoke-real.test.js`: one fill per provider against the
+  real APIs, for each of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+  `OPENROUTER_API_KEY` that is set; Claude models also check the cache read.
+  Costs a few cents.
+- `tests/deep-autofill.test.js`: older end-to-end test against
+  `test-form.html`; needs Playwright (`npm i -D playwright`) and a local server
+  (`python3 -m http.server 8731`).
 
-It reads the page's **server HTML**, so it works best on public, mostly-static
-pages. Login-gated or heavily JavaScript-rendered pages (e.g. a logged-in
-LinkedIn feed) often return little usable text.
+## Publishing
 
-## Configure per website
+Manual upload in the Chrome Web Store dashboard; see [PUBLISHING.md](PUBLISHING.md)
+and the listing texts in [STORE_LISTING.md](STORE_LISTING.md).
 
-In Settings → **Per-website settings**, add a domain (e.g. `jobs.example.com`) and
-give it its own model, instructions, and knowledge base. These layer on top of the
-global settings for that domain.
+## Limits
 
-## About browser autofill
-
-Chrome does not expose its saved autofill profiles (addresses, payment methods,
-passwords) to extensions — there is no API to read that store, by design. So this
-plugin can't pull those records directly. Instead it learns the same data the
-moment the browser puts it on a page: let Chrome autofill a form, then click
-**Import autofill from page** (or just submit — typed/autofilled values are
-captured automatically). Because fields are keyed by their `autocomplete` token,
-that data then reuses across every site that asks for the same thing.
-
-## Notes / limits
-
-- Fills text-like inputs, textareas, and selects. Checkboxes, radios, passwords,
-  and file inputs are intentionally skipped.
-- Without an API key, only saved values are used (no AI).
-- Uses the Anthropic Messages API directly from the browser via
-  `anthropic-dangerous-direct-browser-access`.
+- Chrome does not expose its saved autofill profiles to extensions. Let Chrome
+  fill a form, then use **Import autofill from page**.
+- File inputs, passwords and sensitive fields are never filled or stored.
+- If the AI call fails (bad key, rate limit, timeout), nothing is filled, not even
+  fields that have a saved value; the toast shows the error.
+- On an auto-fill site, a form embedded from another site is not filled on page
+  load, only when you click **Autofill this page**.
+- Chrome's own permission prompts and the "Leave site?" warning in Settings are
+  not covered by the automated tests.
