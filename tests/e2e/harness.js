@@ -94,13 +94,14 @@ async function startServers() {
 }
 
 // Copy of the extension whose manifest grants the test hosts up front: the
-// popup's activeTab grant cannot be produced by a script.
-function buildExtension() {
+// popup's activeTab grant cannot be produced by a script. `extraHosts` adds
+// real sites for checks against live pages.
+function buildExtension(extraHosts = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aiff-ext-"));
   for (const f of EXTENSION_FILES)
     fs.copyFileSync(path.join(EXTENSION_SRC, f), path.join(dir, f));
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json")));
-  manifest.host_permissions.push(...GRANTED_HOSTS);
+  manifest.host_permissions.push(...GRANTED_HOSTS, ...extraHosts);
   fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(manifest));
   return dir;
 }
@@ -238,13 +239,17 @@ function installFakeAI(plan) {
 }
 
 class Harness {
-  async start() {
+  async start({ extraHosts } = {}) {
     const { chromium } = loadPlaywright();
     this.stopServers = await startServers();
-    this.extDir = buildExtension();
+    this.extDir = buildExtension(extraHosts);
     this.profile = fs.mkdtempSync(path.join(os.tmpdir(), "aiff-profile-"));
     this.context = await chromium.launchPersistentContext(this.profile, {
-      headless: false,
+      // Headless by default, so a run never takes over the screen. Extensions
+      // load only in the full browser's headless mode (channel "chromium"),
+      // not in Playwright's default headless shell. AIFF_HEADED=1 shows it.
+      headless: process.env.AIFF_HEADED !== "1",
+      channel: "chromium",
       viewport: { width: 1280, height: 900 },
       args: [
         `--disable-extensions-except=${this.extDir}`,
