@@ -17,7 +17,9 @@ gaps and next steps live in [STATUS.md](STATUS.md).
    embedded form**, which asks for access to that one site.
 3. **Scan.** Only **empty** fillable fields are considered, so a second run never
    overwrites what you typed. Supported: text-like inputs, textareas, selects,
-   radio groups, checkbox groups, single checkboxes and `contenteditable` editors.
+   radio groups, checkbox groups, single checkboxes, `contenteditable` editors,
+   and ARIA radios/checkboxes (`role="radio"`/`"checkbox"` divs, as Google Forms
+   uses).
    Passwords, file inputs and sensitive fields are skipped.
 4. **Match each field to a concept** (`email`, `first_name`, `job_title`, ...):
    learned field map first, then the `autocomplete` token, then label/placeholder
@@ -126,8 +128,8 @@ $0.001 with `gpt-4o-mini` and $0.02 with Claude Sonnet 5.5.
 - `node --test tests/e2e/extension.test.js`: the real extension in a real
   Chromium, every feature (popup, auto-fill, wizard, iframes, preview, ask panel,
   chip, capture, import, settings, saved data, providers, errors). The AI is a
-  scripted fake inside the service worker, so it runs offline and free (45 tests,
-  about 80 s). No repo dependency: Playwright comes from the npx cache (or
+  scripted fake inside the service worker, so it runs offline and free (47 tests,
+  about 80 s). Headless by default; `AIFF_HEADED=1` shows the browser. No repo dependency: Playwright comes from the npx cache (or
   `PLAYWRIGHT_PATH`; `npx playwright install chromium` once if none is found).
   Ports 8731 and 8732 on 127.0.0.1 must be free. Tests marked `todo` pin known
   bugs. `AIFF_EXTENSION_SRC=<dir>` runs it against an unzipped release package.

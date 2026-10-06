@@ -81,6 +81,10 @@ _Last updated: 2026-10-06_
 - **No per-site long-answer model field** (#7), though settings used it.
 - **Claude on OpenRouter cached nothing** (#7): 0 cached tokens on back-to-back
   fills; after the fix a repeat fill read 3,609 of 5,272 input tokens from cache.
+- **Google Forms choices were invisible.** Its radios and checkboxes are
+  `div role="radio"`/`"checkbox"`, not `<input>`s, so the scanner skipped them;
+  now read and filled through `AriaChoiceField` (state via `aria-checked`,
+  changed by clicking).
 - **The chip vanished on Tab** (#8): moving to the next field hid its chip 200 ms
   after it appeared.
 - **Current Claude models failed every fill** (#10). The Anthropic provider
@@ -95,6 +99,14 @@ _Last updated: 2026-10-06_
   with "Fixture port busy".
 
 ## Not verified
+
+- **A live Google Form.** The test form
+  (`docs.google.com/forms/d/e/1FAIpQLSf...iOymeiA`) needs a Google sign-in. One
+  headless run with the Brave session saw its 15 questions (13 text/textarea,
+  1 ARIA radio group "Level English", 1 file upload); every later attempt,
+  including cookies exported by hand, was sent to the sign-in page (likely
+  Google rejecting a copied session). ARIA choices are covered by a local
+  fixture that copies the Google Forms markup (test C7), not by the real site.
 
 - **api.anthropic.com itself** (no Anthropic key). The Anthropic provider's
   exact requests were run against real Claude through OpenRouter's
@@ -162,6 +174,8 @@ _Last updated: 2026-10-06_
 - Fill a cross-origin iframe on page load for auto-fill sites (needs that
   site's own access).
 - A repeatable test of Chrome's permission prompt, on a machine nobody is using.
+- A field labelled just "Name" does not map to `full_name`, so a saved full name
+  is not reused there (the AI still fills it from the knowledge base).
 
 ## Backlog (not started)
 
