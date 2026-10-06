@@ -6,6 +6,10 @@
 //   ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY   (any subset)
 //   AIFF_MODEL_ANTHROPIC / AIFF_MODEL_OPENAI / AIFF_MODEL_OPENROUTER (optional)
 //
+// With only an OpenRouter key, the Anthropic provider's own requests are also
+// sent to OpenRouter's Anthropic-compatible Messages endpoint, so its wire
+// format (tool call, cache mark) runs against real Claude models.
+//
 // Run: node --test tests/e2e/smoke-real.test.js
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -47,11 +51,13 @@ const KNOWLEDGE = [
   ),
 ].join("\n");
 
-// Pass-through spy: records each provider call and its token usage.
-function installSpy() {
+// Pass-through spy: records each provider call and its token usage. With
+// `redirect` ({ from, to }), a URL starting with `from` is sent to `to`.
+function installSpy(redirect) {
   self.__calls = [];
   self.__realFetch = self.__realFetch || self.fetch.bind(self);
   self.fetch = async (url, init) => {
+    if (redirect && String(url).startsWith(redirect.from)) url = redirect.to;
     const res = await self.__realFetch(url, init);
     const u = String(url);
     if (!/anthropic\.com|openai\.com|openrouter\.ai/.test(u)) return res;
@@ -72,49 +78,73 @@ const h = new Harness();
 before(() => h.start(), { timeout: 60000 });
 after(() => h.stop());
 
+const CLAUDE_VIA_OPENROUTER = (
+  process.env.AIFF_CLAUDE_VIA_OPENROUTER ||
+  "anthropic/claude-sonnet-4.6,anthropic/claude-sonnet-5.5"
+).split(",");
+
+// One preview fill per call of fill(); returns rows by label.
+async function fillJob() {
+  const page = await h.open(JOB);
+  const popup = await h.popupFill(JOB);
+  const status = await popup.textContent("#status");
+  assert.match(status, /^Review the preview/, status);
+  return Object.fromEntries((await ui.previewRows(page)).map((r) => [r.label, r]));
+}
+
+async function checkProvider({ provider, key, model, redirect }) {
+  await h.reset({
+    settings: {
+      providerKeys: { [provider]: key },
+      defaultProvider: provider,
+      ...(model ? { defaultModel: model } : {}),
+      globalKnowledge: KNOWLEDGE,
+    },
+  });
+  await h.swEval(installSpy, redirect || null);
+
+  const rows = await fillJob();
+  console.log(`[${provider} ${model || "default"}]`, JSON.stringify(await h.swEval(() => self.__calls)));
+  for (const [label, row] of Object.entries(rows))
+    console.log(`  ${label} [${row.source}]: ${row.value.slice(0, 90).replace(/\n/g, " / ")}`);
+
+  assert.equal(rows.Email.value, "alex.rivera@example.com");
+  assert.equal(rows["Are you authorized to work in the US?"].value, "Yes");
+  const cover = rows["Cover letter"];
+  assert.ok(cover && cover.value.length > 200, `cover letter missing or short: ${cover && cover.value}`);
+  assert.equal(rows["Social security number"], undefined, "invented an SSN");
+
+  // Claude marks the system prompt cacheable, directly or via OpenRouter.
+  if (provider === "anthropic" || /^~?anthropic\//.test(model || "")) {
+    await fillJob();
+    const usage = (await h.swEval(() => self.__calls)).map((c) => c.usage || {});
+    const written = (u) =>
+      u.cache_creation_input_tokens ?? u.prompt_tokens_details?.cache_write_tokens;
+    const read = (u) =>
+      u.cache_read_input_tokens ?? u.prompt_tokens_details?.cached_tokens;
+    console.log("  cache [written, read]:", JSON.stringify(usage.map((u) => [written(u), read(u)])));
+    assert.ok(read(usage.at(-1)) > 0, "second call did not read the cache");
+  }
+}
+
 for (const [provider, envName] of Object.entries(ENV_KEYS)) {
   const key = process.env[envName];
-  test(`real ${provider}: preview proposes grounded values`, { skip: !key && `${envName} not set` }, async () => {
-    const model = process.env[`AIFF_MODEL_${provider.toUpperCase()}`];
-    await h.reset({
-      settings: {
-        providerKeys: { [provider]: key },
-        defaultProvider: provider,
-        ...(model ? { defaultModel: model } : {}),
-        globalKnowledge: KNOWLEDGE,
+  test(`real ${provider}: preview proposes grounded values`, { skip: !key && `${envName} not set` }, () =>
+    checkProvider({ provider, key, model: process.env[`AIFF_MODEL_${provider.toUpperCase()}`] }),
+  );
+}
+
+for (const model of CLAUDE_VIA_OPENROUTER) {
+  const key = process.env.OPENROUTER_API_KEY;
+  test(`real anthropic provider via OpenRouter Messages: ${model}`, { skip: !key && "OPENROUTER_API_KEY not set" }, () =>
+    checkProvider({
+      provider: "anthropic",
+      key,
+      model,
+      redirect: {
+        from: "https://api.anthropic.com/v1/messages",
+        to: "https://openrouter.ai/api/v1/messages",
       },
-    });
-    await h.swEval(installSpy);
-
-    const fill = async () => {
-      const page = await h.open(JOB);
-      const popup = await h.popupFill(JOB);
-      const status = await popup.textContent("#status");
-      assert.match(status, /^Review the preview/, status);
-      return Object.fromEntries((await ui.previewRows(page)).map((r) => [r.label, r]));
-    };
-
-    const rows = await fill();
-    console.log(`[${provider}]`, JSON.stringify((await h.swEval(() => self.__calls))));
-    for (const [label, row] of Object.entries(rows))
-      console.log(`  ${label} [${row.source}]: ${row.value.slice(0, 90).replace(/\n/g, " / ")}`);
-
-    assert.equal(rows.Email.value, "alex.rivera@example.com");
-    assert.equal(rows["Are you authorized to work in the US?"].value, "Yes");
-    const cover = rows["Cover letter"];
-    assert.ok(cover && cover.value.length > 200, `cover letter missing or short: ${cover && cover.value}`);
-    assert.equal(rows["Social security number"], undefined, "invented an SSN");
-
-    // Claude marks the system prompt cacheable, directly or via OpenRouter.
-    if (provider === "anthropic" || /^~?anthropic\//.test(model || "")) {
-      await fill();
-      const usage = (await h.swEval(() => self.__calls)).map((c) => c.usage || {});
-      const written = (u) =>
-        u.cache_creation_input_tokens ?? u.prompt_tokens_details?.cache_write_tokens;
-      const read = (u) =>
-        u.cache_read_input_tokens ?? u.prompt_tokens_details?.cached_tokens;
-      console.log("  cache [written, read]:", JSON.stringify(usage.map((u) => [written(u), read(u)])));
-      assert.ok(read(usage.at(-1)) > 0, "second call did not read the cache");
-    }
-  });
+    }),
+  );
 }
