@@ -1,105 +1,106 @@
-# Chrome Web Store listing — AI Form Autofill
+# Chrome Web Store listing: AI Form Autofill
 
-Copy/paste material for the Developer Dashboard. Sections map to the dashboard
-fields and the "Privacy practices" tab.
+The texts submitted with version 1.3.0 on 2026-09-30 (item
+`eipchmghhpnfdlpcbkhgbndmkacieppe`). Sections map to the dashboard fields. Keep
+this file in sync when the listing changes.
 
 ---
 
-## Name
-AI Form Autofill
+## Store listing tab
 
-## Summary (≤132 chars)
-Fill web forms with AI. Learns from what you type, suggests values, and lets you
-set a model, prompt and knowledge base per site.
+**Title and summary:** taken from `manifest.json` (`name`, `description`).
 
-## Category
-Productivity
+**Category:** Productivity. **Language:** English. **Mature content:** No.
 
-## Single purpose (required)
-Help the user fill out web forms by suggesting and entering values, using an AI
-provider the user configures and a knowledge base the user provides.
+**Homepage URL:** https://github.com/iklobato/ai-form-autofill
 
-## Detailed description
-AI Form Autofill fills web forms for you using the AI provider you choose
-(Anthropic, OpenAI, or OpenRouter — bring your own API key).
+**Support URL:** https://github.com/iklobato/ai-form-autofill/issues
 
-How it works:
-- Click the extension on any form and choose Autofill. You see a preview of the
-  proposed values — each editable, with a checkbox — and confirm what gets filled.
-- It learns from what you type (sensitive fields like passwords, cards, and OTPs
-  are never stored) and reuses those values on similar forms across sites, instantly
-  and offline.
+**Store icon:** `icon128.png`.
+
+**Screenshots** (1280x800 JPEG, no alpha, fictional data): the preview panel on
+a job form; the filled form with the "ask" panel and status toast; the Knowledge
+base settings. They were generated from the real extension with a mocked AI; the
+script is not in the repo.
+
+### Description
+
+```
+AI Form Autofill fills web forms for you, using the AI provider you choose: Anthropic, OpenAI or OpenRouter (bring your own API key).
+
+How it works
+- Click the extension on any form and choose "Autofill this page". A preview shows every proposed value, each one editable, with a checkbox. You decide what gets filled.
+- Write your details once in the knowledge base (name, contact, links, work history, preferences). The AI uses it to answer form fields, including open questions like "Why do you want to join us?".
+- Long answers are written fresh for each page, using the job post or page you are on, so an answer written for one company is never pasted into another.
+- It learns from what you type and reuses those values on similar forms across sites, instantly and without calling the AI.
+- If a required field can't be answered from your data, it asks you once and remembers the answer. For fields with fixed choices, you pick from the field's own options.
+- Works on forms embedded in other pages (for example job forms shown inside a company's careers page).
 - Focus an empty field for an inline suggestion from your saved values or the AI.
-- Provide a knowledge base (name, contact, links, work history, preferences) once
-  and the AI uses it to answer form fields — including free-text questions. You can
-  even build the knowledge base automatically from a URL (résumé, portfolio,
-  public profile).
-- Configure a different provider, model, instructions, and knowledge base per
-  website.
-- Optionally enable "Auto-fill this site automatically" for a specific site to
-  fill it on page load (this asks for access to that site).
+- Set a different provider, model, instructions and knowledge base per website.
+- Optional: turn on "Auto-fill this site automatically" for a site to fill it when the page loads.
 
-Your API keys, settings, and saved values are stored locally in your browser.
-Nothing is sent to the developer — form data goes only to the AI provider you
-configured. See the privacy policy for details.
-
-## Privacy policy URL
-(Host PRIVACY.md, e.g. on GitHub Pages, and put the URL here.)
+Privacy
+Your API keys, settings and saved values stay in your browser. Nothing is sent to the developer. Form details, the visible text of the page you are filling, and your knowledge base go only to the AI provider you set up. Passwords, card numbers, one-time codes and similar sensitive fields are never saved or sent.
+```
 
 ---
 
-## Permission justifications (reviewers ask for these)
+## Privacy practices tab
 
-- **storage** — Save your settings, API keys, and the values learned from forms,
-  locally on your device.
-- **activeTab** — When you click Autofill or Import, read and fill the form on the
-  current tab for that action only. No standing access to the page.
-- **scripting** — Inject the form-filling script into the current tab on your click
-  (activeTab), and register a content script for a specific site only when you
-  enable "Auto-fill this site automatically" for it.
-- **host_permissions: api.anthropic.com, api.openai.com, openrouter.ai** — Send
-  form-field descriptions, the page's readable text (so answers fit, e.g., the job
-  posting being applied to), and your knowledge base to the AI provider you chose
-  to obtain suggested values. These are the only always-allowed hosts.
-- **optional_host_permissions (all sites)** — Requested at runtime, per site, only
-  when you (a) enable automatic fill for that site, or (b) build a knowledge base
-  from a URL. Not granted by default.
+### Single purpose
 
-## Remote code
-No remote code is executed. All logic ships in the package. The extension only
-makes HTTPS API calls to the AI provider you configure.
+```
+Help the user fill out web forms by suggesting and entering values, using an AI provider the user configures and a knowledge base the user provides.
+```
 
----
+### Permission justifications
 
-## Privacy practices tab — data collection answers
+**storage**
+```
+Saves the user's settings, API keys and the values learned from forms, locally on the user's device.
+```
 
-The extension collects/uses the following **to provide the feature, on the user's
-device and to the user's chosen AI provider only** (not to the developer):
+**activeTab**
+```
+When the user clicks Autofill or Import, the extension reads and fills the form on the current tab for that action only. It has no standing access to the page.
+```
 
-- **Personally identifiable information** (name, address, email, phone): YES —
-  the user enters this; stored locally; sent to the chosen AI provider to fill
-  forms.
-- **Authentication information** (passwords): NO — sensitive fields are excluded
-  and never stored or sent.
-- **Personal communications, financial/payment info, health info, location,
-  web history, user activity (clicks, keystroke logging), website content for
-  unrelated purposes**: NO.
-  - Note: the extension reads form fields and the page's visible text only when
-    you invoke it, to fill that form (the page text lets answers match, e.g., the
-    job posting) — not to track activity.
+**scripting**
+```
+Injects the form-filling script into the current tab when the user clicks the extension (through activeTab), and registers a content script for a specific site only when the user turns on "Auto-fill this site automatically" for that site.
+```
 
-Certifications (all must be true and are):
-- I do not sell or transfer user data to third parties outside the approved use
-  cases.
-- I do not use or transfer user data for purposes unrelated to the item's single
-  purpose.
-- I do not use or transfer user data to determine creditworthiness or for lending.
+**Host permission**
+```
+Always-allowed hosts are only the AI provider APIs (api.anthropic.com, api.openai.com, openrouter.ai). The extension sends them the form field descriptions, the visible text of the page being filled and the user's knowledge base, to get suggested values from the provider the user chose. Access to other sites is optional and requested at runtime, one site at a time, only when the user: turns on auto-fill for a site, allows access to a form embedded from another site, builds a knowledge base from a URL, or turns on "Learn on all sites" in Options. None of it is granted by default.
+```
 
----
+### Remote code
 
-## Suggested assets to prepare
-- Screenshots (1280×800 or 640×400): the preview panel filling a form; the Options
-  tabs (General, Knowledge base, Websites, Saved data); the popup with the per-site
-  auto-fill toggle.
-- 128×128 icon (already in the package: icon128.png).
-- Optional 440×280 promo tile.
+Answer: **No, I am not using remote code.**
+```
+No remote code is executed. All logic ships in the package. The extension only makes HTTPS API calls to the AI provider the user configures.
+```
+
+### Data usage
+
+- Checked: **Personally identifiable information** (name, address, email, phone
+  the user enters; stored locally, sent to the chosen AI provider to fill forms).
+- Unchecked: health, financial and payment, authentication (sensitive fields are
+  excluded), personal communications, location, web history, user activity,
+  website content.
+  - Open point: the visible page text is sent to the AI provider to tailor
+    answers. It was left unchecked as "website content" because it is used only
+    to fill that form. If the review objects, check it and resubmit.
+
+Certifications (all three checked):
+- I do not sell or transfer user data to third parties, outside of the approved
+  use cases.
+- I do not use or transfer user data for purposes that are unrelated to my
+  item's single purpose.
+- I do not use or transfer user data to determine creditworthiness or for
+  lending purposes.
+
+### Privacy policy URL
+
+https://github.com/iklobato/ai-form-autofill/blob/main/PRIVACY.md
