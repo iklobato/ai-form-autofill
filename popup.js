@@ -6,6 +6,8 @@ AIFF.PopupController = class PopupController {
   }
 
   init() {
+    document.querySelector("#version").textContent =
+      `v${chrome.runtime.getManifest().version}`;
     this.$fill = document.querySelector("#fill");
     this.$status = document.querySelector("#status");
     this.$meta = document.querySelector("#meta");
