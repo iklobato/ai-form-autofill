@@ -6,6 +6,7 @@ var AIFF = (self.AIFF = self.AIFF || {}); // shared global scope; see shared.js
 AIFF.SuggestionChip = class SuggestionChip {
   constructor() {
     this.el = null;
+    this.target = null; // the field the chip is showing for
   }
 
   _ensure() {
@@ -31,8 +32,13 @@ AIFF.SuggestionChip = class SuggestionChip {
     if (this.el) this.el.style.display = "none";
   }
 
+  // Runs a moment after a field loses focus. Moving straight to another field
+  // renders that field's chip first, so keep the chip when it belongs to the
+  // field that now has focus.
   maybeHide() {
-    if (this.el && !this.el.matches(":hover")) this.hide();
+    if (!this.el || this.el.matches(":hover")) return;
+    if (this.target && document.activeElement === this.target) return;
+    this.hide();
   }
 
   _truncate(s) {
@@ -96,6 +102,7 @@ AIFF.SuggestionChip = class SuggestionChip {
       });
       c.appendChild(ai);
     }
+    this.target = field.el;
     this._position(field.el);
     c.style.display = "block";
   }

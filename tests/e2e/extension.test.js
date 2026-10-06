@@ -636,9 +636,7 @@ test("G inline chip: saved value, AI suggestion, and nothing without a key", asy
   assert.equal(await chipNoKey.filter({ hasText: "✨ AI" }).count(), 0);
 });
 
-test("G2 the chip stays when focus moves from one field to the next", {
-  todo: "the previous field's focusout timer (200 ms) hides the chip just rendered for the new field, so the chip only stays when focus comes from outside a field",
-}, async () => {
+test("G2 the chip stays when focus moves from one field to the next", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY });
   await registerSite("shop.test");
   const page = await h.open(`${SHOP}/contact.html`);
@@ -647,6 +645,18 @@ test("G2 the chip stays when focus moves from one field to the next", {
   await page.focus("#org");
   await settle(800);
   assert.equal(await page.locator("[data-aiff-ui] button", { hasText: "✨ AI" }).isVisible(), true);
+
+  // Moving on to a field with nothing to offer still hides the old chip.
+  await h.reset({ settings: {}, memory: MEMORY });
+  await registerSite("shop.test");
+  const noKey = await h.open(`${SHOP}/contact.html`);
+  await settle();
+  await noKey.focus("#em");
+  const memChip = noKey.locator("[data-aiff-ui] button", { hasText: "↩ alex@example.com" });
+  await memChip.waitFor();
+  await noKey.focus("#org");
+  await settle(800);
+  assert.equal(await memChip.isVisible(), false, "stale chip left on the previous field");
 });
 
 // --------------------------------------------------------------- H. settings
