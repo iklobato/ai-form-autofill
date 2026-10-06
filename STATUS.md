@@ -4,22 +4,23 @@ _Last updated: 2026-10-06_
 
 ## Where it stands
 
-- **Version 1.3.0** submitted to the Chrome Web Store on 2026-09-30. Status:
+- **Version 1.3.1** uploaded to the Chrome Web Store on 2026-10-06 (zip sha256
+  `9e2271ce37f019e98e1cb44f1464b91e33a53d32783234c9bc68f0a715b1778a`). Status:
   **Pending review**. Item ID `eipchmghhpnfdlpcbkhgbndmkacieppe`. Store page once
   approved: https://chromewebstore.google.com/detail/eipchmghhpnfdlpcbkhgbndmkacieppe
-- Not live until the review passes. The review may take longer than usual because
-  the manifest asks for optional access to all sites.
+- 1.3.0 was submitted on 2026-09-30 and was still in review when 1.3.1 was
+  uploaded; what the dashboard did with the 1.3.0 review was not recorded.
+- Not live until a review passes. It may take longer than usual because the
+  manifest asks for optional access to all sites.
 - Repo made **public** on 2026-09-30 so the listing can link the homepage,
   support page and privacy policy. The full history was scanned for keys and
   tokens first; none found.
 - Releases are **manual** (see PUBLISHING.md). The next upload must be at least
-  1.3.1.
-- **Fixes merged on main but not released.** PRs #6 and #7 (2026-10-06) fixed six
-  bugs found by the new end-to-end suite, including sensitive fields being sent
-  to the AI. They reach users only with 1.3.1. Decision on 2026-10-06: wait for
-  the 1.3.0 review to finish, then upload 1.3.1, so the pending review is not
-  replaced (what the dashboard does with a new upload during review was not
-  checked).
+  1.3.2.
+- 1.3.1 carries every fix merged since 1.3.0 (PRs #6 to #12), including
+  sensitive fields kept away from the AI and support for Claude Sonnet 5.5 /
+  Opus 5.5 / Fable 5.1. The same zip passed 45/45 e2e tests and 214 unit checks
+  before upload.
 - The 1.3.0 listing says sensitive fields are "never saved or sent". In 1.3.0 a
   text field such as "Social security number" was sent to the AI: its label on
   every fill, and the typed value too if it failed the page's validation. True
@@ -39,6 +40,8 @@ _Last updated: 2026-10-06_
 | #8 | The suggestion chip stays when focus moves to the next field. |
 | #9 | README, store listing and this status file brought up to date. |
 | #10 | Claude Sonnet 5.5 / Opus 5.5 / Fable 5.1 work (no forced tool call); tests for the unsaved-changes prompt and the release zip; the old deep-autofill test runs again. |
+| #11 | Status after the validation run. |
+| #12 | Version 1.3.1. |
 
 ## What we found (and fixed)
 
@@ -126,8 +129,10 @@ _Last updated: 2026-10-06_
 
 ## Next steps
 
-1. Wait for the review email. If rejected, fix what it names and resubmit.
-2. Once live, check the store page, install from the store and fill one real form.
+1. Wait for the review email for 1.3.1. If rejected, fix what it names and
+   resubmit as 1.3.2.
+2. Once live, install from the store and fill one real form; check the
+   permission prompt for an embedded form (an unpacked load showed none).
 
 ## Backlog (not started)
 
