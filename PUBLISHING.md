@@ -14,7 +14,8 @@ Releases are uploaded by hand in the
 ## Each release
 1. Bump `"version"` in `manifest.json`. The store rejects a version that is not
    higher than the published one.
-2. Run the checks: `node test-formats.js`.
+2. Run the checks: `node test-formats.js` and
+   `node --test tests/e2e/extension.test.js`.
 3. Build the zip with only the files the extension ships (README, PRIVACY,
    tests and `.git` stay out):
    ```sh
@@ -22,7 +23,10 @@ Releases are uploaded by hand in the
      formdom.js content.js popup.js popup.html options.js options.html \
      icon16.png icon48.png icon128.png
    ```
-4. In the dashboard, open the item, go to **Package**, upload the zip, and
-   submit for review.
+4. Test the zip itself, not only the repo: unzip it to a folder and run
+   `AIFF_EXTENSION_SRC=<folder> node --test tests/e2e/extension.test.js`.
+   Note its `shasum -a 256` in STATUS.md.
+5. In the dashboard, open the item, go to **Package**, upload the zip, and
+   submit for review. Then record the version and date in STATUS.md.
 
 Listing text, screenshots and the privacy policy are edited in the dashboard.

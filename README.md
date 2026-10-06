@@ -94,12 +94,14 @@ key (30 s timeout). Keys, settings and saved values stay in
 
 | Provider | Key format | Example models |
 |----------|-----------|----------------|
-| Anthropic | `sk-ant-...` | `claude-opus-4-8`, `claude-sonnet-4-6` |
+| Anthropic | `sk-ant-...` | `claude-sonnet-4-6` (default), `claude-sonnet-5-5`, `claude-opus-4-8` |
 | OpenAI | `sk-...` | `gpt-4o`, `gpt-4o-mini`, `o4-mini` |
 | OpenRouter | `sk-or-...` | `openai/gpt-4o-mini`, `anthropic/claude-sonnet-5.5` |
 
 Without a key only saved values fill. Anthropic is called from the browser with
-`anthropic-dangerous-direct-browser-access`. The two OpenRouter models above were
+`anthropic-dangerous-direct-browser-access`. JSON answers come back through a
+`result` tool that is asked for, not forced, because Claude Sonnet 5.5, Opus 5.5
+and Fable 5.1 reject a forced tool call. The two OpenRouter models above were
 run against the real API on 2026-10-06; a fill of the test job form cost about
 $0.001 with `gpt-4o-mini` and $0.02 with Claude Sonnet 5.5.
 
@@ -124,17 +126,22 @@ $0.001 with `gpt-4o-mini` and $0.02 with Claude Sonnet 5.5.
 - `node --test tests/e2e/extension.test.js`: the real extension in a real
   Chromium, every feature (popup, auto-fill, wizard, iframes, preview, ask panel,
   chip, capture, import, settings, saved data, providers, errors). The AI is a
-  scripted fake inside the service worker, so it runs offline and free (44 tests,
+  scripted fake inside the service worker, so it runs offline and free (45 tests,
   about 80 s). No repo dependency: Playwright comes from the npx cache (or
   `PLAYWRIGHT_PATH`; `npx playwright install chromium` once if none is found).
-  Tests marked `todo` pin known bugs.
+  Ports 8731 and 8732 on 127.0.0.1 must be free. Tests marked `todo` pin known
+  bugs. `AIFF_EXTENSION_SRC=<dir>` runs it against an unzipped release package.
 - `node --test tests/e2e/smoke-real.test.js`: one fill per provider against the
   real APIs, for each of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
   `OPENROUTER_API_KEY` that is set; Claude models also check the cache read.
-  Costs a few cents.
+  With an OpenRouter key it also runs the Anthropic provider against real
+  Claude through OpenRouter's Anthropic-compatible Messages endpoint
+  (`AIFF_CLAUDE_VIA_OPENROUTER`, default Sonnet 4.6 and 5.5). Costs a few cents.
 - `tests/deep-autofill.test.js`: older end-to-end test against
-  `test-form.html`; needs Playwright (`npm i -D playwright`) and a local server
-  (`python3 -m http.server 8731`).
+  `test-form.html` with the extension scripts loaded into the page. Run it with
+  a server on 8731 and Playwright from the npx cache:
+  `python3 -m http.server 8731 --bind 127.0.0.1 &` then
+  `BASE_URL=http://127.0.0.1:8731 NODE_PATH=<npx cache>/node_modules node tests/deep-autofill.test.js`.
 
 ## Publishing
 
