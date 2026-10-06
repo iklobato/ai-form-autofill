@@ -4,14 +4,14 @@ _Last updated: 2026-10-06_
 
 ## Where it stands
 
-- **Version 1.3.1** uploaded to the Chrome Web Store on 2026-10-06 (zip sha256
-  `9e2271ce37f019e98e1cb44f1464b91e33a53d32783234c9bc68f0a715b1778a`). Status:
-  **Pending review**. Item ID `eipchmghhpnfdlpcbkhgbndmkacieppe`. Store page once
-  approved: https://chromewebstore.google.com/detail/eipchmghhpnfdlpcbkhgbndmkacieppe
-- 1.3.0 was submitted on 2026-09-30 and was still in review when 1.3.1 was
-  uploaded; what the dashboard did with the 1.3.0 review was not recorded.
-- Not live until a review passes. It may take longer than usual because the
-  manifest asks for optional access to all sites.
+- **Version 1.3.1 is live** on the Chrome Web Store (review passed, store email
+  on 2026-10-06; visibility Public). Item ID `eipchmghhpnfdlpcbkhgbndmkacieppe`:
+  https://chromewebstore.google.com/detail/eipchmghhpnfdlpcbkhgbndmkacieppe
+- The package Chrome's update server hands out (`..._1_3_1_0.crx`) was
+  downloaded and compared with main: every file is identical; the store only
+  adds `update_url` to the manifest and a `_metadata` folder. The e2e suite
+  passed 45/45 on that published package. Installed copies move to 1.3.1 on
+  their own (see "How users get the update" in PUBLISHING.md).
 - Repo made **public** on 2026-09-30 so the listing can link the homepage,
   support page and privacy policy. The full history was scanned for keys and
   tokens first; none found.
@@ -146,10 +146,12 @@ _Last updated: 2026-10-06_
 
 ## Next steps
 
-1. Wait for the review email for 1.3.1. If rejected, fix what it names and
-   resubmit as 1.3.2 (build and test the zip as in PUBLISHING.md).
-2. Once live, install from the store and fill one real form; check the
-   permission prompt for an embedded form (an unpacked load showed none).
+1. Still unchecked on the store-installed copy: the permission prompt for an
+   embedded form (an unpacked load showed none). A test browser cannot install
+   from the store, so this needs an install in a normal Chrome profile.
+2. Next upload is 1.3.2. `node test-formats.js` now fails if it adds a required
+   permission, which would disable the extension for every user until they
+   accept.
 3. With an Anthropic key: run `tests/e2e/smoke-real.test.js` against
    api.anthropic.com (only the OpenRouter route was run).
 

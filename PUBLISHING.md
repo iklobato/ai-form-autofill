@@ -30,3 +30,28 @@ Releases are uploaded by hand in the
    submit for review. Then record the version and date in STATUS.md.
 
 Listing text, screenshots and the privacy policy are edited in the dashboard.
+
+## How users get the update
+
+Installed copies update themselves: Chrome checks the store at startup and every
+few hours, and installs the new version once the extension is idle. Users do
+nothing, as long as these hold:
+
+- **Same item, higher version.** A new item ID would be a separate extension
+  with its own (empty) saved data.
+- **No new required permissions.** Adding to `permissions` or
+  `host_permissions` makes Chrome disable the extension for every user until
+  they accept the new warning. `node test-formats.js` fails if either list
+  grows; put new site access in `optional_host_permissions` and request it at
+  runtime.
+- **Saved data stays readable.** `chrome.storage.local` survives updates. If its
+  shape changes, convert it in `chrome.runtime.onInstalled` with
+  `reason === "update"` (see the `allFrames` migration in `background.js`).
+
+A copy loaded with **Load unpacked** never updates by itself (reload it in
+`chrome://extensions`) and is a different extension from the store copy.
+
+Checked on 2026-10-06 with a simulated update (Chromium 1148, unpacked reload
+to a higher version): saved values were kept, and a tab opened before the
+update filled from the popup without reloading the page. Chrome for Testing
+153 disables an unpacked extension on reload, so it cannot run this check.
