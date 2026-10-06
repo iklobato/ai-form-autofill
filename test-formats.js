@@ -644,6 +644,13 @@ async function providerChecks() {
     httpA.calls[1].body.max_tokens === 4096,
     `${httpA.calls[1].body.max_tokens}`,
   );
+  // Sonnet 5.5 / Opus 5.5 / Fable 5.1 answer a forced tool_choice with a 400.
+  check(
+    "anthropic JSON call asks for the tool without forcing it",
+    JSON.stringify(httpA.calls[1].body.tool_choice) === '{"type":"auto"}' &&
+      /calling the `result` tool\.$/.test(httpA.calls[1].body.system[0].text),
+    JSON.stringify([httpA.calls[1].body.tool_choice, httpA.calls[1].body.system[0].text]),
+  );
 
   const httpO = recordingHttp();
   const o = new ctx.AIFF.OpenAICompatibleProvider(httpO, "http://x");
@@ -1766,7 +1773,7 @@ async function reuseChecks() {
   check(
     "anthropic marks the system prompt cacheable",
     Array.isArray(sys) &&
-      sys[0].text === "s" &&
+      sys[0].text.startsWith("s") &&
       (sys[0].cache_control || {}).type === "ephemeral",
     JSON.stringify(sys),
   );
