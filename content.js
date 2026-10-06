@@ -844,8 +844,14 @@ AIFF.ContentApp = class ContentApp {
   }
 
   _registerCapture() {
+    // Only what the user did on the page: fill() dispatches untrusted input
+    // events (capturing them would count every confirmed value twice), and the
+    // extension's own panels are not form fields.
     const queue = (e) =>
-      e.target && this.capture.queue(new AIFF.FormField(e.target));
+      e.isTrusted &&
+      e.target &&
+      !AIFF.FormScanner.isOwnUI(e.target) &&
+      this.capture.queue(new AIFF.FormField(e.target));
     document.addEventListener("input", queue, true);
     document.addEventListener(
       "focusout",
@@ -860,8 +866,9 @@ AIFF.ContentApp = class ContentApp {
 
   _registerChip() {
     document.addEventListener("focusin", async (e) => {
+      if (AIFF.FormScanner.isOwnUI(e.target)) return;
       const field = new AIFF.FormField(e.target);
-      if (!field.isFillable() || field.value) return;
+      if (!field.isFillable() || field.value || field.isSensitive()) return;
       // The worker resolves the stored value by the same canonical key as
       // autofill, and reports whether a key exists — without exposing it here.
       let resp;

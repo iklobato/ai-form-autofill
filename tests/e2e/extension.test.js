@@ -111,7 +111,10 @@ test("A2 popup toggle turns on auto-fill: access asked, script registered, fills
   await page.waitForFunction(() => document.querySelector("#ref").value === "ABC-123");
   assert.equal(await page.inputValue("#fn"), "Alex");
   assert.equal(await ui.panelText(page).then((t) => t.includes("Autofill preview")), false);
-  assert.match(await ui.toast(page), /^Filled \d+ of 14 fields\.$/);
+  await page.waitForFunction(() =>
+    /^Filled/.test(document.querySelector('[data-aiff-ui][role="status"]')?.textContent),
+  );
+  assert.match(await ui.toast(page), /^Filled \d+ of 13 fields\.$/);
   assert.equal((await h.calls("review")).length, 1);
 
   await popup.uncheck("#auto");
@@ -163,7 +166,7 @@ test("A4 popup click during an auto-fill run shares the run instead of failing",
   await registerSite("shop.test");
   await h.open(JOB);
   const popup = await h.popupFill(JOB);
-  assert.match(await popup.textContent("#status"), /^Filled \d+\/14 fields \(AI \+ saved values\)\.$/);
+  assert.match(await popup.textContent("#status"), /^Filled \d+\/13 fields \(AI \+ saved values\)\.$/);
   assert.equal((await h.calls("autofill")).length, 1);
 });
 
@@ -275,8 +278,10 @@ test("C1+E3+E4 full job form: every field kind, option pick, correction, ask pan
   assert.match(asked, /When can you start\?/);
   assert.match(asked, /What is your notice period\?/);
   const panel = page.locator("[data-aiff-ui]").filter({ hasText: "A few details needed" });
-  const choices = await panel.locator("select option").allTextContents();
-  for (const c of ["Immediately", "2 weeks", "1 month"]) assert.ok(choices.includes(c));
+  assert.deepEqual(
+    await panel.locator("select option").allTextContents(),
+    ["", "Immediately", "2 weeks", "1 month"],
+  );
   await panel.locator("input").fill("2026-11-02");
   await panel.locator("select").selectOption("2 weeks");
   await ui.clickPanel(page, "Fill & remember");
@@ -307,9 +312,7 @@ test("C2 a second run never overwrites what the user edited", async () => {
   assert.equal(await page.inputValue("#fn"), "Al");
 });
 
-test("C3 sensitive fields are never sent to the AI", {
-  todo: "README says sensitive fields are skipped, but a text input labelled 'Social security number' is scanned and sent to the AI (it is only kept out of memory)",
-}, async () => {
+test("C3 sensitive fields are never sent to the AI", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   await h.open(JOB);
   await h.popupFill(JOB);
@@ -317,9 +320,7 @@ test("C3 sensitive fields are never sent to the AI", {
   assert.ok(!labels.includes("Social security number"));
 });
 
-test("C4 a select's placeholder option is never offered as an answer", {
-  todo: "'Select...' is sent to the AI as an option and shown as a choice in the ask panel",
-}, async () => {
+test("C4 a select's placeholder option is never offered as an answer", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   await h.open(JOB);
   await h.popupFill(JOB);
@@ -327,9 +328,7 @@ test("C4 a select's placeholder option is never offered as an answer", {
   assert.deepEqual(notice.options, ["Immediately", "2 weeks", "1 month"]);
 });
 
-test("C5 a field's question text never comes from the field before it", {
-  todo: "FieldContext.questionText skips a sibling that is itself an input, so 'Email' is sent with question 'Last name'; a fieldset legend becomes the context of the next unrelated fields",
-}, async () => {
+test("C5 a field's question text never comes from the field before it", async () => {
   await h.reset({ settings: KEYED, plan: {} });
   await h.open(JOB);
   await h.popupFill(JOB);
@@ -339,9 +338,7 @@ test("C5 a field's question text never comes from the field before it", {
   assert.notEqual(byLabel["Referral code"].context, "Which languages do you use?");
 });
 
-test("C6 one confirmed fill counts as one use", {
-  todo: "fill() fires input events that the typing capture also saves, so each confirmed value is counted twice (3 -> 5)",
-}, async () => {
+test("C6 one confirmed fill counts as one use", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   const page = await h.open(JOB);
   await h.popupFill(JOB);
@@ -508,7 +505,7 @@ test("E5 toast shows progress, then the error; an AI failure fills nothing", asy
   const popup = await h.popup(JOB);
   await popup.click("#fill");
   await page.waitForFunction(() =>
-    /Filling 14 fields/.test(document.querySelector('[data-aiff-ui][role="status"]')?.textContent),
+    /Filling 13 fields/.test(document.querySelector('[data-aiff-ui][role="status"]')?.textContent),
   );
   await popup.waitForFunction(() => /^Error/.test(document.querySelector("#status").textContent));
   assert.equal(
@@ -539,15 +536,22 @@ test("F2 typed values are captured; passwords, sensitive and 1-char values are n
   assert.equal(memory.email.domain, "shop.test");
 });
 
-test("F5 typing inside the extension's own panels is never captured", {
-  todo: "MemoryCapture listens on the whole document and does not skip [data-aiff-ui]; an ask-panel answer is also saved under a junk key like field_select_one_22",
-}, async () => {
+test("F5 typing inside the extension's own panels is never captured", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   const page = await h.open(JOB);
   await h.popupFill(JOB);
   await ui.clickPanel(page, "Fill selected");
   await ui.waitPanel(page, "A few details needed");
   const panel = page.locator("[data-aiff-ui]").filter({ hasText: "A few details needed" });
+  await panel.locator("input").focus();
+  await settle();
+  assert.equal(
+    await page.locator("[data-aiff-ui] button", { hasText: "✨ AI" }).isVisible(),
+    false,
+    "chip offered on the extension's own panel",
+  );
+  // Typed (trusted) input, as a person answers the panel.
+  await panel.locator("input").pressSequentially("2026-11-02");
   await panel.locator("select").selectOption("2 weeks");
   await ui.clickPanel(page, "Fill & remember");
   await settle(1500);
@@ -606,6 +610,13 @@ test("G inline chip: saved value, AI suggestion, and nothing without a key", asy
   await chip.filter({ hasText: "↩ alex@example.com" }).click();
   assert.equal(await page.inputValue("#em"), "alex@example.com");
 
+  // From outside any field: moving between fields hides the chip (see G2).
+  await page.click("h1");
+  await settle(400);
+  await page.focus("#ssn");
+  await settle();
+  assert.equal(await chip.filter({ hasText: "✨ AI" }).isVisible(), false, "chip offered on SSN");
+
   await page.focus("#org");
   await chip.filter({ hasText: "✨ AI" }).click();
   await chip.filter({ hasText: "↩ Initech" }).click();
@@ -623,6 +634,19 @@ test("G inline chip: saved value, AI suggestion, and nothing without a key", asy
   await page.focus("#em");
   await chipNoKey.filter({ hasText: "↩ alex@example.com" }).waitFor();
   assert.equal(await chipNoKey.filter({ hasText: "✨ AI" }).count(), 0);
+});
+
+test("G2 the chip stays when focus moves from one field to the next", {
+  todo: "the previous field's focusout timer (200 ms) hides the chip just rendered for the new field, so the chip only stays when focus comes from outside a field",
+}, async () => {
+  await h.reset({ settings: KEYED, memory: MEMORY });
+  await registerSite("shop.test");
+  const page = await h.open(`${SHOP}/contact.html`);
+  await settle();
+  await page.focus("#em");
+  await page.focus("#org");
+  await settle(800);
+  assert.equal(await page.locator("[data-aiff-ui] button", { hasText: "✨ AI" }).isVisible(), true);
 });
 
 // --------------------------------------------------------------- H. settings
@@ -662,6 +686,7 @@ test("H2 per-site override: other provider, its own default model, blank fields 
   assert.deepEqual((await h.storage("settings")).sites["forms.test"], {
     provider: "openai",
     model: "",
+    longFormModel: "",
     prompt: "Be brief.",
     knowledge: "",
   });
@@ -672,12 +697,25 @@ test("H2 per-site override: other provider, its own default model, blank fields 
   assert.match(await popup.textContent("#meta"), /^forms\.test · openai · gpt-4o-mini/);
 });
 
-test("H2b site cards offer a long-form model", {
-  todo: "README lists a per-site long-form model; the site card has no field for it (only provider, model, instructions, knowledge base)",
-}, async () => {
-  await h.reset({ settings: { ...KEYED, sites: { "forms.test": {} } } });
+test("H2b a site's long-form model is saved and used for its essays", async () => {
+  await h.reset({
+    settings: { ...KEYED, sites: { "shop.test": { longFormModel: "site-long" } } },
+    memory: MEMORY,
+    plan: JOB_PLAN,
+  });
   const options = await h.extensionPage("options.html");
-  assert.equal(await options.locator(".card .s-long-model").count(), 1);
+  await options.click("[data-tab=sites]");
+  const field = options.locator(".card[data-domain='shop.test'] .s-long-model");
+  assert.equal(await field.inputValue(), "site-long");
+  await field.fill("site-long-2");
+  await options.click("#save");
+  await options.waitForFunction(() => document.querySelector("#saved").textContent === "Saved.");
+  assert.equal((await h.storage("settings")).sites["shop.test"].longFormModel, "site-long-2");
+
+  await h.open(JOB);
+  await h.popupFill(JOB);
+  const essay = (await h.calls("autofill")).find((c) => c.labels.includes("Cover letter"));
+  assert.equal(essay.model, "site-long-2");
 });
 
 test("H3 knowledge base from a URL, and its failure messages", async () => {
@@ -824,6 +862,28 @@ for (const [provider, url] of [
     assert.equal(cover.value, COVER);
   });
 }
+
+test("J2b OpenRouter Claude models get a cacheable system prompt, others do not", async () => {
+  for (const [model, cache] of [
+    ["anthropic/claude-x", { type: "ephemeral" }],
+    ["openai/gpt-x", null],
+  ]) {
+    await h.reset({
+      settings: {
+        providerKeys: { openrouter: "sk-or" },
+        defaultProvider: "openrouter",
+        defaultModel: model,
+        globalKnowledge: "KB: I live in Austin.",
+      },
+      plan: JOB_PLAN,
+    });
+    await h.open(JOB);
+    await h.popupFill(JOB);
+    const [call] = await h.calls("autofill");
+    assert.deepEqual(call.cacheControl, cache, model);
+    assert.match(call.system, /KB: I live in Austin\./);
+  }
+});
 
 test("J3 OpenAI model without JSON mode: retried as a plain call", async () => {
   await h.reset({

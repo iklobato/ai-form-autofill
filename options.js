@@ -45,6 +45,8 @@ AIFF.SiteCard = class SiteCard {
       <select class="s-provider">${SiteCard.providerOptions("Default")}</select>
       <label>Model <span class="hint">(blank = default)</span></label>
       <input class="s-model" type="text" list="models" />
+      <label>Long-answer model <span class="hint">(blank = default)</span></label>
+      <input class="s-long-model" type="text" list="models" />
       <label>Instructions</label>
       <textarea class="s-prompt"></textarea>
       <label>Knowledge base</label>
@@ -53,6 +55,7 @@ AIFF.SiteCard = class SiteCard {
     this.el.querySelector(".s-domain").textContent = domain;
     this.el.querySelector(".s-provider").value = cfg.provider || "";
     this.el.querySelector(".s-model").value = cfg.model || "";
+    this.el.querySelector(".s-long-model").value = cfg.longFormModel || "";
     this.el.querySelector(".s-prompt").value = cfg.prompt || "";
     this.el.querySelector(".s-knowledge").value = cfg.knowledge || "";
     this.el
@@ -65,6 +68,7 @@ AIFF.SiteCard = class SiteCard {
       ...this.cfg,
       provider: this.el.querySelector(".s-provider").value,
       model: this.el.querySelector(".s-model").value.trim(),
+      longFormModel: this.el.querySelector(".s-long-model").value.trim(),
       prompt: this.el.querySelector(".s-prompt").value.trim(),
       knowledge: this.el.querySelector(".s-knowledge").value.trim(),
     };

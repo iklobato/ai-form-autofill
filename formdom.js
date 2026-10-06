@@ -8,6 +8,10 @@ var AIFF = (self.AIFF = self.AIFF || {}); // shared global scope; see shared.js
 // label association at all. Defensive against partial DOM fakes (tests).
 AIFF.FieldContext = class FieldContext {
   static HEADING_SELECTOR = "h1, h2, h3, h4, legend";
+  // A legend titles only its own fieldset: one found inside an earlier
+  // sibling is another group's question, not a heading for what follows.
+  static SECTION_HEADING_SELECTOR = "h1, h2, h3, h4";
+  static CONTROL_SELECTOR = "input, select, textarea, button";
   static MAX_TEXT = 300;
 
   // Nearest heading above the element: previous siblings first, then up the tree.
@@ -23,7 +27,7 @@ AIFF.FieldContext = class FieldContext {
           sib.matches && sib.matches(FieldContext.HEADING_SELECTOR)
             ? sib
             : sib.querySelector &&
-              sib.querySelector(FieldContext.HEADING_SELECTOR);
+              sib.querySelector(FieldContext.SECTION_HEADING_SELECTOR);
         if (h) return FieldContext._clean(h.textContent);
       }
       node = node.parentElement;
@@ -32,8 +36,9 @@ AIFF.FieldContext = class FieldContext {
   }
 
   // The text block immediately before the control — the de-facto question on
-  // forms with no <label>. A sibling containing another control means we've
-  // crossed into the previous field, so stop searching that level.
+  // forms with no <label>. A sibling that is or contains another control means
+  // we've crossed into the previous field: everything above it belongs to that
+  // field (its label, the form's intro), so there is no question of our own.
   static questionText(el) {
     let node = el;
     for (let depth = 0; node && depth < 4; depth++) {
@@ -42,17 +47,21 @@ AIFF.FieldContext = class FieldContext {
         sib && hops < 4;
         sib = sib.previousElementSibling, hops++
       ) {
-        if (
-          sib.querySelector &&
-          sib.querySelector("input, select, textarea, button")
-        )
-          break;
+        if (FieldContext._isOrHasControl(sib)) return "";
         const text = FieldContext._clean(sib.textContent);
         if (text.length >= 8) return text;
       }
       node = node.parentElement;
     }
     return "";
+  }
+
+  static _isOrHasControl(node) {
+    const sel = FieldContext.CONTROL_SELECTOR;
+    return !!(
+      (node.matches && node.matches(sel)) ||
+      (node.querySelector && node.querySelector(sel))
+    );
   }
 
   static _clean(s) {
@@ -300,8 +309,10 @@ AIFF.FormField = class FormField {
     if (context) info.context = context;
     const question = AIFF.FieldContext.questionText(el);
     if (question && question !== info.label) info.question = question;
+    // A value-less option is the "Select..." placeholder, not an answer.
     if (this.tag === "select")
       info.options = [...el.options]
+        .filter((o) => o.value !== "")
         .map((o) => o.textContent.trim())
         .filter(Boolean);
     return info;
@@ -624,7 +635,8 @@ AIFF.PageContext = class PageContext {
 // Produces the page's fillable logical fields: text-like controls as
 // FormField, radio/checkbox groups as ChoiceGroupField, contenteditable
 // editors as RichTextField. The extension's own panels ([data-aiff-ui]) are
-// never scanned as form fields.
+// never scanned as form fields, and sensitive fields (SSN, card, OTP…) are
+// left out so no fill, correction or question ever sends them to the AI.
 AIFF.FormScanner = class FormScanner {
   static UI_MARKER = "[data-aiff-ui]";
 
@@ -638,7 +650,7 @@ AIFF.FormScanner = class FormScanner {
     const scopes = [];
     const els = [...this.root.querySelectorAll("input, textarea, select")];
     for (const [i, el] of els.entries()) {
-      if (this._ownUI(el)) continue;
+      if (FormScanner.isOwnUI(el)) continue;
       const type = (el.type || "").toLowerCase();
       if (type === "radio" || type === "checkbox") {
         // Same name + same form = one logical group; nameless ones stand alone.
@@ -658,13 +670,13 @@ AIFF.FormScanner = class FormScanner {
       '[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]',
     );
     for (const el of editors) {
-      if (this._ownUI(el)) continue;
+      if (FormScanner.isOwnUI(el)) continue;
       out.push(new AIFF.RichTextField(el));
     }
-    return out.filter((f) => f.isFillable());
+    return out.filter((f) => f.isFillable() && !f.isSensitive());
   }
 
-  _ownUI(el) {
+  static isOwnUI(el) {
     return !!(el.closest && el.closest(FormScanner.UI_MARKER));
   }
 };

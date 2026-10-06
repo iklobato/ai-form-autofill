@@ -1,7 +1,7 @@
 // Smoke test against the REAL provider APIs (costs a few cents). One preview
 // fill of job.html per provider whose key is in the environment; providers
-// without a key are skipped. Anthropic also fills twice to see whether the
-// cached system prompt is read back on the second call.
+// without a key are skipped. Claude models (Anthropic, or OpenRouter with an
+// anthropic/ model) fill twice to see whether the second call reads the cache.
 //
 //   ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY   (any subset)
 //   AIFF_MODEL_ANTHROPIC / AIFF_MODEL_OPENAI / AIFF_MODEL_OPENROUTER (optional)
@@ -105,11 +105,16 @@ for (const [provider, envName] of Object.entries(ENV_KEYS)) {
     assert.ok(cover && cover.value.length > 200, `cover letter missing or short: ${cover && cover.value}`);
     assert.equal(rows["Social security number"], undefined, "invented an SSN");
 
-    if (provider === "anthropic") {
+    // Claude marks the system prompt cacheable, directly or via OpenRouter.
+    if (provider === "anthropic" || /^~?anthropic\//.test(model || "")) {
       await fill();
       const usage = (await h.swEval(() => self.__calls)).map((c) => c.usage || {});
-      console.log("  cache:", JSON.stringify(usage.map((u) => [u.cache_creation_input_tokens, u.cache_read_input_tokens])));
-      assert.ok(usage.at(-1).cache_read_input_tokens > 0, "second call did not read the cache");
+      const written = (u) =>
+        u.cache_creation_input_tokens ?? u.prompt_tokens_details?.cache_write_tokens;
+      const read = (u) =>
+        u.cache_read_input_tokens ?? u.prompt_tokens_details?.cached_tokens;
+      console.log("  cache [written, read]:", JSON.stringify(usage.map((u) => [written(u), read(u)])));
+      assert.ok(read(usage.at(-1)) > 0, "second call did not read the cache");
     }
   });
 }
