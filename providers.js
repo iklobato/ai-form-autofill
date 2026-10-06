@@ -97,8 +97,13 @@ AIFF.AnthropicProvider = class AnthropicProvider extends AIFF.Provider {
     );
     return (data.content || []).map((b) => b.text || "").join("");
   }
-  // Force a tool call whose input is the structured result — Anthropic's reliable
-  // way to get structured output. Uses the given schema, else a flat string map.
+  static RESULT_TOOL_INSTRUCTION =
+    "\n\nGive your answer by calling the `result` tool.";
+  // A tool call whose input is the structured result. Current Claude models
+  // (Sonnet 5.5, Opus 5.5, Fable 5.1) reject a forced tool_choice with a 400,
+  // so the call is asked for in the system prompt instead; a reply that comes
+  // back as text is still parsed below. Uses the given schema, else a flat
+  // string map.
   async completeJson({ apiKey, model, system, user, maxTokens }, schema) {
     const tool = {
       name: "result",
@@ -114,10 +119,12 @@ AIFF.AnthropicProvider = class AnthropicProvider extends AIFF.Provider {
       {
         model,
         max_tokens: maxTokens || 2048,
-        system: this._system(system),
+        system: this._system(
+          system + AnthropicProvider.RESULT_TOOL_INSTRUCTION,
+        ),
         messages: [{ role: "user", content: user }],
         tools: [tool],
-        tool_choice: { type: "tool", name: "result" },
+        tool_choice: { type: "auto" },
       },
     );
     const block = (data.content || []).find((b) => b.type === "tool_use");

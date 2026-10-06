@@ -13,6 +13,9 @@ const path = require("path");
 const http = require("http");
 
 const REPO = path.resolve(__dirname, "../..");
+// Where the extension files come from: the repo, or an unzipped release
+// package (AIFF_EXTENSION_SRC) to check what the store would get.
+const EXTENSION_SRC = process.env.AIFF_EXTENSION_SRC || REPO;
 const FIXTURES = path.join(__dirname, "fixtures");
 const PORTS = [8731, 8732];
 const GRANTED_HOSTS = ["*://shop.test/*", "*://forms.test/*"];
@@ -53,25 +56,41 @@ function loadPlaywright() {
   );
 }
 
-function startServers() {
+// Listens on 127.0.0.1, where the browser sends the .test hosts. A busy port
+// stops the run: on any other address the pages would quietly come from
+// whatever already listens there, and every test would fail for that reason.
+async function startServers() {
   const types = { ".html": "text/html", ".css": "text/css" };
   const servers = PORTS.map((port) =>
-    http
-      .createServer((req, res) => {
-        const name = path.basename(new URL(req.url, "http://x").pathname);
-        const file = path.join(FIXTURES, name);
-        if (!fs.existsSync(file)) {
-          res.writeHead(404).end("not found");
-          return;
-        }
-        res.writeHead(200, {
-          "content-type": types[path.extname(file)] || "text/plain",
-        });
-        res.end(fs.readFileSync(file));
-      })
-      .listen(port),
+    http.createServer((req, res) => {
+      const name = path.basename(new URL(req.url, "http://x").pathname);
+      const file = path.join(FIXTURES, name);
+      if (!fs.existsSync(file)) {
+        res.writeHead(404).end("not found");
+        return;
+      }
+      res.writeHead(200, {
+        "content-type": types[path.extname(file)] || "text/plain",
+      });
+      res.end(fs.readFileSync(file));
+    }),
   );
-  return () => servers.forEach((s) => s.close());
+  const close = () => servers.forEach((s) => s.listening && s.close());
+  try {
+    await Promise.all(
+      servers.map(
+        (s, i) =>
+          new Promise((resolve, reject) => {
+            s.once("error", reject);
+            s.listen(PORTS[i], "127.0.0.1", resolve);
+          }),
+      ),
+    );
+  } catch (e) {
+    close();
+    throw new Error(`Fixture port busy (${e.code}): ${PORTS.join(", ")} must be free.`);
+  }
+  return close;
 }
 
 // Copy of the extension whose manifest grants the test hosts up front: the
@@ -79,7 +98,7 @@ function startServers() {
 function buildExtension() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aiff-ext-"));
   for (const f of EXTENSION_FILES)
-    fs.copyFileSync(path.join(REPO, f), path.join(dir, f));
+    fs.copyFileSync(path.join(EXTENSION_SRC, f), path.join(dir, f));
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json")));
   manifest.host_permissions.push(...GRANTED_HOSTS);
   fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(manifest));
@@ -221,7 +240,7 @@ function installFakeAI(plan) {
 class Harness {
   async start() {
     const { chromium } = loadPlaywright();
-    this.stopServers = startServers();
+    this.stopServers = await startServers();
     this.extDir = buildExtension();
     this.profile = fs.mkdtempSync(path.join(os.tmpdir(), "aiff-profile-"));
     this.context = await chromium.launchPersistentContext(this.profile, {
