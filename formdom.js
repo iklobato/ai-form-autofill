@@ -624,7 +624,8 @@ AIFF.PageContext = class PageContext {
 // Produces the page's fillable logical fields: text-like controls as
 // FormField, radio/checkbox groups as ChoiceGroupField, contenteditable
 // editors as RichTextField. The extension's own panels ([data-aiff-ui]) are
-// never scanned as form fields.
+// never scanned as form fields, and sensitive fields (SSN, card, OTP…) are
+// left out so no fill, correction or question ever sends them to the AI.
 AIFF.FormScanner = class FormScanner {
   static UI_MARKER = "[data-aiff-ui]";
 
@@ -661,7 +662,7 @@ AIFF.FormScanner = class FormScanner {
       if (this._ownUI(el)) continue;
       out.push(new AIFF.RichTextField(el));
     }
-    return out.filter((f) => f.isFillable());
+    return out.filter((f) => f.isFillable() && !f.isSensitive());
   }
 
   _ownUI(el) {

@@ -861,7 +861,7 @@ AIFF.ContentApp = class ContentApp {
   _registerChip() {
     document.addEventListener("focusin", async (e) => {
       const field = new AIFF.FormField(e.target);
-      if (!field.isFillable() || field.value) return;
+      if (!field.isFillable() || field.value || field.isSensitive()) return;
       // The worker resolves the stored value by the same canonical key as
       // autofill, and reports whether a key exists — without exposing it here.
       let resp;

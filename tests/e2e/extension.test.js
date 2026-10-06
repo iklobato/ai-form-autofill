@@ -111,7 +111,10 @@ test("A2 popup toggle turns on auto-fill: access asked, script registered, fills
   await page.waitForFunction(() => document.querySelector("#ref").value === "ABC-123");
   assert.equal(await page.inputValue("#fn"), "Alex");
   assert.equal(await ui.panelText(page).then((t) => t.includes("Autofill preview")), false);
-  assert.match(await ui.toast(page), /^Filled \d+ of 14 fields\.$/);
+  await page.waitForFunction(() =>
+    /^Filled/.test(document.querySelector('[data-aiff-ui][role="status"]')?.textContent),
+  );
+  assert.match(await ui.toast(page), /^Filled \d+ of 13 fields\.$/);
   assert.equal((await h.calls("review")).length, 1);
 
   await popup.uncheck("#auto");
@@ -163,7 +166,7 @@ test("A4 popup click during an auto-fill run shares the run instead of failing",
   await registerSite("shop.test");
   await h.open(JOB);
   const popup = await h.popupFill(JOB);
-  assert.match(await popup.textContent("#status"), /^Filled \d+\/14 fields \(AI \+ saved values\)\.$/);
+  assert.match(await popup.textContent("#status"), /^Filled \d+\/13 fields \(AI \+ saved values\)\.$/);
   assert.equal((await h.calls("autofill")).length, 1);
 });
 
@@ -307,9 +310,7 @@ test("C2 a second run never overwrites what the user edited", async () => {
   assert.equal(await page.inputValue("#fn"), "Al");
 });
 
-test("C3 sensitive fields are never sent to the AI", {
-  todo: "README says sensitive fields are skipped, but a text input labelled 'Social security number' is scanned and sent to the AI (it is only kept out of memory)",
-}, async () => {
+test("C3 sensitive fields are never sent to the AI", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   await h.open(JOB);
   await h.popupFill(JOB);
@@ -508,7 +509,7 @@ test("E5 toast shows progress, then the error; an AI failure fills nothing", asy
   const popup = await h.popup(JOB);
   await popup.click("#fill");
   await page.waitForFunction(() =>
-    /Filling 14 fields/.test(document.querySelector('[data-aiff-ui][role="status"]')?.textContent),
+    /Filling 13 fields/.test(document.querySelector('[data-aiff-ui][role="status"]')?.textContent),
   );
   await popup.waitForFunction(() => /^Error/.test(document.querySelector("#status").textContent));
   assert.equal(
@@ -605,6 +606,13 @@ test("G inline chip: saved value, AI suggestion, and nothing without a key", asy
   await page.focus("#em");
   await chip.filter({ hasText: "↩ alex@example.com" }).click();
   assert.equal(await page.inputValue("#em"), "alex@example.com");
+
+  // From outside any field: moving between fields hides the chip (see G2).
+  await page.click("h1");
+  await settle(400);
+  await page.focus("#ssn");
+  await settle();
+  assert.equal(await chip.filter({ hasText: "✨ AI" }).isVisible(), false, "chip offered on SSN");
 
   await page.focus("#org");
   await chip.filter({ hasText: "✨ AI" }).click();
