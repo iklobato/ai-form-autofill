@@ -686,6 +686,7 @@ test("H2 per-site override: other provider, its own default model, blank fields 
   assert.deepEqual((await h.storage("settings")).sites["forms.test"], {
     provider: "openai",
     model: "",
+    longFormModel: "",
     prompt: "Be brief.",
     knowledge: "",
   });
@@ -696,12 +697,25 @@ test("H2 per-site override: other provider, its own default model, blank fields 
   assert.match(await popup.textContent("#meta"), /^forms\.test · openai · gpt-4o-mini/);
 });
 
-test("H2b site cards offer a long-form model", {
-  todo: "README lists a per-site long-form model; the site card has no field for it (only provider, model, instructions, knowledge base)",
-}, async () => {
-  await h.reset({ settings: { ...KEYED, sites: { "forms.test": {} } } });
+test("H2b a site's long-form model is saved and used for its essays", async () => {
+  await h.reset({
+    settings: { ...KEYED, sites: { "shop.test": { longFormModel: "site-long" } } },
+    memory: MEMORY,
+    plan: JOB_PLAN,
+  });
   const options = await h.extensionPage("options.html");
-  assert.equal(await options.locator(".card .s-long-model").count(), 1);
+  await options.click("[data-tab=sites]");
+  const field = options.locator(".card[data-domain='shop.test'] .s-long-model");
+  assert.equal(await field.inputValue(), "site-long");
+  await field.fill("site-long-2");
+  await options.click("#save");
+  await options.waitForFunction(() => document.querySelector("#saved").textContent === "Saved.");
+  assert.equal((await h.storage("settings")).sites["shop.test"].longFormModel, "site-long-2");
+
+  await h.open(JOB);
+  await h.popupFill(JOB);
+  const essay = (await h.calls("autofill")).find((c) => c.labels.includes("Cover letter"));
+  assert.equal(essay.model, "site-long-2");
 });
 
 test("H3 knowledge base from a URL, and its failure messages", async () => {
