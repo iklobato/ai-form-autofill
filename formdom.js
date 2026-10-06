@@ -650,7 +650,7 @@ AIFF.FormScanner = class FormScanner {
     const scopes = [];
     const els = [...this.root.querySelectorAll("input, textarea, select")];
     for (const [i, el] of els.entries()) {
-      if (this._ownUI(el)) continue;
+      if (FormScanner.isOwnUI(el)) continue;
       const type = (el.type || "").toLowerCase();
       if (type === "radio" || type === "checkbox") {
         // Same name + same form = one logical group; nameless ones stand alone.
@@ -670,13 +670,13 @@ AIFF.FormScanner = class FormScanner {
       '[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]',
     );
     for (const el of editors) {
-      if (this._ownUI(el)) continue;
+      if (FormScanner.isOwnUI(el)) continue;
       out.push(new AIFF.RichTextField(el));
     }
     return out.filter((f) => f.isFillable() && !f.isSensitive());
   }
 
-  _ownUI(el) {
+  static isOwnUI(el) {
     return !!(el.closest && el.closest(FormScanner.UI_MARKER));
   }
 };

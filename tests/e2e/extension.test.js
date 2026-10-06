@@ -536,15 +536,22 @@ test("F2 typed values are captured; passwords, sensitive and 1-char values are n
   assert.equal(memory.email.domain, "shop.test");
 });
 
-test("F5 typing inside the extension's own panels is never captured", {
-  todo: "MemoryCapture listens on the whole document and does not skip [data-aiff-ui]; an ask-panel answer is also saved under a junk key like field_select_one_22",
-}, async () => {
+test("F5 typing inside the extension's own panels is never captured", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   const page = await h.open(JOB);
   await h.popupFill(JOB);
   await ui.clickPanel(page, "Fill selected");
   await ui.waitPanel(page, "A few details needed");
   const panel = page.locator("[data-aiff-ui]").filter({ hasText: "A few details needed" });
+  await panel.locator("input").focus();
+  await settle();
+  assert.equal(
+    await page.locator("[data-aiff-ui] button", { hasText: "✨ AI" }).isVisible(),
+    false,
+    "chip offered on the extension's own panel",
+  );
+  // Typed (trusted) input, as a person answers the panel.
+  await panel.locator("input").pressSequentially("2026-11-02");
   await panel.locator("select").selectOption("2 weeks");
   await ui.clickPanel(page, "Fill & remember");
   await settle(1500);
