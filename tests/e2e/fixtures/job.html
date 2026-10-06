@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Apply: Senior Backend Engineer at Acme</title>
+<link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Senior Backend Engineer at Acme</h1>
+<p>Acme builds payments infrastructure in Go and Python for 2,000 merchants.</p>
+<form id="apply">
+  <h2>Personal</h2>
+  <label for="fn">First name</label><input id="fn" name="first_name" autocomplete="given-name" required>
+  <label for="ln">Last name</label><input id="ln" name="last_name" autocomplete="family-name" required>
+  <label for="em">Email</label><input id="em" type="email" name="email" autocomplete="email" required>
+  <label for="ph">Phone</label><input id="ph" type="tel" name="phone" autocomplete="tel">
+  <label for="country">Country</label>
+  <select id="country" name="country" autocomplete="country-name">
+    <option value="">Select...</option><option>United States</option><option>Canada</option><option>Brazil</option>
+  </select>
+  <label for="pw">Create a password</label><input id="pw" type="password" name="pw">
+  <label for="ssn">Social security number</label><input id="ssn" name="ssn">
+  <label for="cv">Resume</label><input id="cv" type="file" name="resume">
+  <label for="ro">Requisition</label><input id="ro" name="requisition" value="" readonly>
+  <h2>Questions</h2>
+  <fieldset><legend>Are you authorized to work in the US?</legend>
+    <label><input type="radio" name="auth" value="yes">Yes</label>
+    <label><input type="radio" name="auth" value="no">No</label>
+  </fieldset>
+  <fieldset><legend>Which languages do you use?</legend>
+    <label><input type="checkbox" name="langs" value="go">Go</label>
+    <label><input type="checkbox" name="langs" value="python">Python</label>
+    <label><input type="checkbox" name="langs" value="rust">Rust</label>
+  </fieldset>
+  <label><input type="checkbox" name="alerts"> Send me job alerts</label>
+  <label for="ref">Referral code</label><input id="ref" name="referral" pattern="[A-Z]{3}-[0-9]{3}" placeholder="ABC-123">
+  <label for="cover">Cover letter</label><textarea id="cover" name="cover_letter"></textarea>
+  <div id="why-label">Why Acme?</div><div id="why" contenteditable="true" aria-labelledby="why-label"></div>
+  <label for="start">Earliest start date</label><input id="start" name="start_date" required>
+  <label for="notice">Notice period</label>
+  <select id="notice" name="notice" required>
+    <option value="">Select...</option><option>Immediately</option><option>2 weeks</option><option>1 month</option>
+  </select>
+  <button type="submit">Submit application</button>
+</form>
+</body></html>
