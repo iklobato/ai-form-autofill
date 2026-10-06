@@ -844,8 +844,12 @@ AIFF.ContentApp = class ContentApp {
   }
 
   _registerCapture() {
+    // Only what the user did: fill() dispatches untrusted input events, and
+    // capturing those would count every confirmed value a second time.
     const queue = (e) =>
-      e.target && this.capture.queue(new AIFF.FormField(e.target));
+      e.isTrusted &&
+      e.target &&
+      this.capture.queue(new AIFF.FormField(e.target));
     document.addEventListener("input", queue, true);
     document.addEventListener(
       "focusout",

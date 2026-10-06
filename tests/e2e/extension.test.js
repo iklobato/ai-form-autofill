@@ -338,9 +338,7 @@ test("C5 a field's question text never comes from the field before it", async ()
   assert.notEqual(byLabel["Referral code"].context, "Which languages do you use?");
 });
 
-test("C6 one confirmed fill counts as one use", {
-  todo: "fill() fires input events that the typing capture also saves, so each confirmed value is counted twice (3 -> 5)",
-}, async () => {
+test("C6 one confirmed fill counts as one use", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   const page = await h.open(JOB);
   await h.popupFill(JOB);
