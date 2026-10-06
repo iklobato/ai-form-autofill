@@ -1,6 +1,6 @@
 # Privacy Policy — AI Form Autofill
 
-_Last updated: 2026-09-30_
+_Last updated: 2026-10-06_
 
 AI Form Autofill ("the extension") helps you fill web forms using an AI provider
 you choose. This policy explains what data the extension handles and where it
@@ -20,7 +20,8 @@ leaves your machine except as described under "What is sent to AI providers":
 
 Sensitive fields — passwords, credit-card numbers, CVV/CSC, one-time codes,
 SSNs, bank/account numbers, API keys, and similar — are detected and **never
-captured or stored**.
+captured or stored**. From version 1.3.1 they are also never filled and never
+described to the AI provider.
 
 ## What is sent to AI providers
 

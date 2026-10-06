@@ -1,8 +1,13 @@
 # Chrome Web Store listing: AI Form Autofill
 
 The texts submitted with version 1.3.0 on 2026-09-30 (item
-`eipchmghhpnfdlpcbkhgbndmkacieppe`). Sections map to the dashboard fields. Keep
-this file in sync when the listing changes.
+`eipchmghhpnfdlpcbkhgbndmkacieppe`). Version 1.3.1 (2026-10-06) was a new
+package only; no listing change was recorded with it. Sections map to the
+dashboard fields. Keep this file in sync when the listing changes.
+
+The description's last line ("sensitive fields are never saved or sent") is
+true only from 1.3.1: in 1.3.0 a text field such as "Social security number"
+had its label sent to the AI.
 
 ---
 

@@ -42,6 +42,7 @@ _Last updated: 2026-10-06_
 | #10 | Claude Sonnet 5.5 / Opus 5.5 / Fable 5.1 work (no forced tool call); tests for the unsaved-changes prompt and the release zip; the old deep-autofill test runs again. |
 | #11 | Status after the validation run. |
 | #12 | Version 1.3.1. |
+| #13 | Status records the 1.3.1 upload. |
 
 ## What we found (and fixed)
 
@@ -82,6 +83,16 @@ _Last updated: 2026-10-06_
   fills; after the fix a repeat fill read 3,609 of 5,272 input tokens from cache.
 - **The chip vanished on Tab** (#8): moving to the next field hid its chip 200 ms
   after it appeared.
+- **Current Claude models failed every fill** (#10). The Anthropic provider
+  forced the `result` tool (`tool_choice: tool`), which Claude Sonnet 5.5, Opus
+  5.5 and Fable 5.1 reject with a 400. It now uses `tool_choice: auto` and asks
+  for the tool in the system prompt; text replies are still parsed.
+- **The old real-browser test had silently stopped running** (#10): its chrome
+  stub lacked `runtime.onInstalled`, so `background.js` threw before the message
+  router loaded.
+- **A busy port made the e2e suite fail with no reason** (#10): another server on
+  127.0.0.1 answered the fixture requests (36 failures). The suite now stops
+  with "Fixture port busy".
 
 ## Not verified
 
@@ -103,7 +114,7 @@ _Last updated: 2026-10-06_
 ## Verified on 2026-10-06
 
 - `node test-formats.js`: 214 checks. `node --test tests/e2e/extension.test.js`:
-  45 tests, also run against the unzipped release zip from PUBLISHING.md.
+  45 tests, also run against the unzipped 1.3.1 upload zip.
 - The `beforeunload` prompt in Settings (test H1b).
 - `tests/deep-autofill.test.js` passes (with Playwright from the npx cache:
   `NODE_PATH=<npx playwright node_modules>` and a server on 8731).
@@ -126,13 +137,29 @@ _Last updated: 2026-10-06_
 - **Store data disclosure:** "Website content" was left unchecked because page
   text is used only to fill that form. If the review objects, check it and
   resubmit.
+- **An AI error drops the saved values too.** If the AI call fails (bad key,
+  rate limit, timeout), nothing is filled, not even fields that have a saved
+  value.
+- **"Clear" in Saved data asks nothing**: one click deletes every saved value.
+- **Opus 5.5 and Fable 5.1 checked only by the docs**: neither was run;
+  the API docs list the same forced-tool error as Sonnet 5.5, which is fixed.
 
 ## Next steps
 
 1. Wait for the review email for 1.3.1. If rejected, fix what it names and
-   resubmit as 1.3.2.
+   resubmit as 1.3.2 (build and test the zip as in PUBLISHING.md).
 2. Once live, install from the store and fill one real form; check the
    permission prompt for an embedded form (an unpacked load showed none).
+3. With an Anthropic key: run `tests/e2e/smoke-real.test.js` against
+   api.anthropic.com (only the OpenRouter route was run).
+
+## Still open (not scheduled)
+
+- Fill from saved values when the AI call fails, instead of filling nothing.
+- Ask before "Clear" deletes all saved values.
+- Fill a cross-origin iframe on page load for auto-fill sites (needs that
+  site's own access).
+- A repeatable test of Chrome's permission prompt, on a machine nobody is using.
 
 ## Backlog (not started)
 
