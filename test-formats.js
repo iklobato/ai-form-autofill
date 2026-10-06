@@ -695,6 +695,31 @@ async function providerChecks() {
   );
 }
 
+// --- manifest: required permissions stay what users already granted ----------
+// An update that adds a required permission or host makes Chrome disable the
+// extension for every user until they accept the new warning. New access goes
+// in optional_host_permissions and is requested at runtime instead. Change this
+// list only on purpose, knowing users will be prompted.
+const PUBLISHED_REQUIRED = {
+  permissions: ["activeTab", "scripting", "storage"],
+  host_permissions: [
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*",
+    "https://openrouter.ai/*",
+  ],
+};
+const shippedManifest = JSON.parse(fs.readFileSync(__dirname + "/manifest.json"));
+for (const field of Object.keys(PUBLISHED_REQUIRED)) {
+  const added = (shippedManifest[field] || []).filter(
+    (p) => !PUBLISHED_REQUIRED[field].includes(p),
+  );
+  check(
+    `manifest adds no required ${field} (users would be prompted)`,
+    added.length === 0,
+    added.join(", "),
+  );
+}
+
 // --- background.js: htmlToText entity decoding ------------------------------
 const h2t = ctx.AIFF.KnowledgeService.htmlToText;
 check(
