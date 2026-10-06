@@ -682,6 +682,28 @@ test("H1 settings: template, unsaved marker, Cmd/Ctrl+S saves", async () => {
   assert.equal(await options.inputValue("#defaultModel"), "gpt-test");
 });
 
+test("H1b closing Settings with unsaved changes asks first; after Save it does not", async () => {
+  await h.reset({});
+  const options = await h.extensionPage("options.html");
+  await options.click("#defaultModel");
+  await options.keyboard.type("gpt-test");
+  const asked = options.waitForEvent("dialog");
+  await options.close({ runBeforeUnload: true });
+  const dialog = await asked;
+  assert.equal(dialog.type(), "beforeunload");
+  await dialog.dismiss();
+  assert.equal(options.isClosed(), false, "page closed despite staying");
+
+  await options.keyboard.press("ControlOrMeta+s");
+  await options.waitForFunction(() => document.querySelector("#saved").textContent === "Saved.");
+  let dialogs = 0;
+  options.on("dialog", () => dialogs++);
+  await options.close({ runBeforeUnload: true });
+  await settle();
+  assert.equal(dialogs, 0);
+  assert.equal(options.isClosed(), true);
+});
+
 test("H2 per-site override: other provider, its own default model, blank fields inherit", async () => {
   await h.reset({ settings: { ...KEYED, defaultModel: "claude-x" } });
   const options = await h.extensionPage("options.html");

@@ -62,6 +62,7 @@ async function setup() {
   window.chrome = {
     runtime: {
       onMessage: { addListener: (fn) => listeners.push(fn) },
+      onInstalled: { addListener: () => {} },
       sendMessage: (msg) =>
         new Promise((resolve) => {
           window.__sent.push(msg.action);
