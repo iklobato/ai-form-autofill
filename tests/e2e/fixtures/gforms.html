@@ -1,0 +1,59 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Backend architect</title><link rel="stylesheet" href="style.css">
+<style>
+  /* Choices are divs, like Google Forms: no <input>, state in aria-checked. */
+  [role=radio], [role=checkbox] { display: block; padding: 6px 0; cursor: pointer; }
+  [role=radio]::before { content: "( ) "; }
+  [role=radio][aria-checked=true]::before { content: "(o) "; }
+  [role=checkbox]::before { content: "[ ] "; }
+  [role=checkbox][aria-checked=true]::before { content: "[x] "; }
+</style></head>
+<body>
+<h1>Backend architect</h1>
+<!-- Mirrors the Google Forms DOM: each question is a listitem whose heading is
+     referenced by aria-labelledby; text answers are plain inputs. -->
+<form id="gf" onsubmit="return false">
+  <div role="list">
+    <div role="listitem">
+      <div role="heading" aria-level="3"><span id="q1">Name </span></div>
+      <input type="text" aria-labelledby="q1">
+    </div>
+    <div role="listitem">
+      <div role="heading" aria-level="3"><span id="q2">Email address</span></div>
+      <input type="text" aria-labelledby="q2">
+    </div>
+    <div role="listitem">
+      <div role="heading" aria-level="3"><span id="q3">Which backend technologies have you worked with professionally?</span></div>
+      <textarea aria-labelledby="q3"></textarea>
+    </div>
+    <div role="listitem">
+      <div role="heading" aria-level="3"><span id="q4">Level English </span></div>
+      <div role="radiogroup" aria-labelledby="q4">
+        <div role="radio" aria-label="Basic" data-value="Basic" aria-checked="false" tabindex="0">Basic</div>
+        <div role="radio" aria-label="Intermediate" data-value="Intermediate" aria-checked="false" tabindex="0">Intermediate</div>
+        <div role="radio" aria-label="Advanced" data-value="Advanced" aria-checked="false" tabindex="0">Advanced</div>
+        <div role="radio" aria-label="Fluent" data-value="Fluent" aria-checked="false" tabindex="0">Fluent</div>
+      </div>
+    </div>
+    <div role="listitem">
+      <div role="heading" aria-level="3"><span id="q5">Which clouds have you used?</span></div>
+      <div role="list" aria-labelledby="q5">
+        <div role="checkbox" aria-label="AWS" aria-checked="false" tabindex="0">AWS</div>
+        <div role="checkbox" aria-label="GCP" aria-checked="false" tabindex="0">GCP</div>
+        <div role="checkbox" aria-label="Azure" aria-checked="false" tabindex="0">Azure</div>
+      </div>
+    </div>
+  </div>
+</form>
+<script>
+  // The page owns the state, as Google Forms does: a click toggles aria-checked.
+  document.addEventListener("click", (e) => {
+    const opt = e.target.closest("[role=radio], [role=checkbox]");
+    if (!opt) return;
+    if (opt.getAttribute("role") === "radio")
+      for (const r of opt.closest("[role=radiogroup]").querySelectorAll("[role=radio]"))
+        r.setAttribute("aria-checked", String(r === opt));
+    else opt.setAttribute("aria-checked", String(opt.getAttribute("aria-checked") !== "true"));
+  });
+</script>
+</body></html>

@@ -505,6 +505,168 @@ AIFF.ChoiceGroupField = class ChoiceGroupField {
   }
 };
 
+// A choice built from ARIA widgets instead of <input>s: `role="radio"` options
+// in a `role="radiogroup"`, or `role="checkbox"` ones (Google Forms and many
+// component libraries). State lives in aria-checked and changes only through
+// the page's own click handler, so fill() clicks and then trusts aria-checked.
+AIFF.AriaChoiceField = class AriaChoiceField {
+  static OPTION_SELECTOR = '[role="radio"], [role="checkbox"]';
+
+  constructor(group, options) {
+    this.group = group; // the radiogroup/list element, or null for a lone box
+    this.els = options;
+    this.el = options[0];
+  }
+
+  get type() {
+    if (this.el.getAttribute("role") === "radio") return "radio_group";
+    return this.els.length > 1 ? "checkbox_group" : "checkbox";
+  }
+  get name() {
+    return "";
+  }
+  get id() {
+    return (this.group && this.group.id) || this.el.id || "";
+  }
+  get placeholder() {
+    return "";
+  }
+  get value() {
+    return this.els
+      .filter(AriaChoiceField._checked)
+      .map(AriaChoiceField._optionLabel)
+      .filter(Boolean)
+      .join(", ");
+  }
+  attr(name) {
+    return this.el.getAttribute(name);
+  }
+
+  static _checked(el) {
+    return el.getAttribute("aria-checked") === "true";
+  }
+  static _optionLabel(el) {
+    return (
+      el.getAttribute("aria-label") ||
+      el.getAttribute("data-value") ||
+      (el.textContent || "").trim()
+    );
+  }
+  static _ariaName(el) {
+    if (!el) return "";
+    const aria = el.getAttribute("aria-label");
+    if (aria) return aria.trim();
+    const ids = el.getAttribute("aria-labelledby");
+    return ids ? AIFF.FormField._textFromIds(ids) : "";
+  }
+
+  label() {
+    if (this.type === "checkbox") {
+      const own = AriaChoiceField._optionLabel(this.el);
+      if (own) return own;
+    }
+    const anchor = this.group || this.el;
+    return (
+      AriaChoiceField._ariaName(this.group) ||
+      AIFF.FieldContext.questionText(anchor) ||
+      AIFF.FieldContext.nearestHeading(anchor)
+    );
+  }
+
+  options() {
+    return this.els.map(AriaChoiceField._optionLabel).filter(Boolean);
+  }
+
+  signature() {
+    const key = AIFF.Text.normalize(this.label());
+    if (key) return key;
+    const all = [...document.querySelectorAll(AriaChoiceField.OPTION_SELECTOR)];
+    const idx = all.indexOf(this.el);
+    return `field_${this.type}_${idx < 0 ? 0 : idx}`;
+  }
+
+  fingerprint() {
+    const base = AIFF.Text.normalize(this.label());
+    return base ? `${base}|${this.type}` : "";
+  }
+
+  isFillable() {
+    return this.els.some(
+      (el) =>
+        el.getAttribute("aria-disabled") !== "true" &&
+        !!(el.offsetParent || el.getClientRects().length),
+    );
+  }
+  isSensitive() {
+    return AIFF.SensitivePolicy.isSensitive(this);
+  }
+  isAutofilled() {
+    return false;
+  }
+  isEmpty() {
+    return !this.els.some(AriaChoiceField._checked);
+  }
+  isRequired() {
+    return [this.group, this.el].some(
+      (el) => el && el.getAttribute("aria-required") === "true",
+    );
+  }
+  isInvalid() {
+    return false;
+  }
+  validationMessage() {
+    return "";
+  }
+
+  describe(key) {
+    const info = {
+      key: key || this.signature(),
+      label: this.label(),
+      type: this.type,
+      options: this.type === "checkbox" ? ["yes", "no"] : this.options(),
+    };
+    const fp = this.fingerprint();
+    if (fp) info.fingerprint = fp;
+    if (this.isRequired()) info.required = true;
+    const question = AIFF.FieldContext.questionText(this.group || this.el);
+    if (question && question !== info.label) info.question = question;
+    return info;
+  }
+
+  // Same value rules as ChoiceGroupField: an option's label, "yes"/"no" for a
+  // lone checkbox, comma-separated options for a checkbox group. True only when
+  // the page actually checked what was asked.
+  fill(value) {
+    const wanted = String(value == null ? "" : value);
+    if (this.type === "checkbox") {
+      const v = AIFF.Text.normalize(wanted);
+      const on = /^(yes|true|y|1|on|checked)$/.test(v);
+      if (!on && !/^(no|false|n|0|off|unchecked)$/.test(v)) return false;
+      return AriaChoiceField._set(this.el, on);
+    }
+    const targets =
+      this.type === "checkbox_group"
+        ? wanted.split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+        : [wanted];
+    let hit = false;
+    for (const t of targets) {
+      const want = AIFF.Text.normalize(t);
+      const el =
+        want &&
+        this.els.find(
+          (o) => AIFF.Text.normalize(AriaChoiceField._optionLabel(o)) === want,
+        );
+      if (el && AriaChoiceField._set(el, true)) hit = true;
+    }
+    return hit;
+  }
+
+  static _set(el, checked) {
+    if (AriaChoiceField._checked(el) !== checked) el.click();
+    return AriaChoiceField._checked(el) === checked;
+  }
+};
+
 // A contenteditable rich-text editor (cover letters, "tell us more" boxes)
 // behind the same field interface.
 AIFF.RichTextField = class RichTextField {
@@ -666,6 +828,7 @@ AIFF.FormScanner = class FormScanner {
     }
     for (const groupEls of groups.values())
       out.push(new AIFF.ChoiceGroupField(groupEls));
+    out.push(...this._ariaChoices());
     const editors = this.root.querySelectorAll(
       '[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]',
     );
@@ -674,6 +837,28 @@ AIFF.FormScanner = class FormScanner {
       out.push(new AIFF.RichTextField(el));
     }
     return out.filter((f) => f.isFillable() && !f.isSensitive());
+  }
+
+  // ARIA radios/checkboxes (not <input>s, which the loop above already took),
+  // one field per containing radiogroup/group/list; a box outside any group
+  // stands alone.
+  _ariaChoices() {
+    const groups = new Map();
+    const options = this.root.querySelectorAll(
+      AIFF.AriaChoiceField.OPTION_SELECTOR,
+    );
+    for (const el of options) {
+      if (el.tagName === "INPUT" || FormScanner.isOwnUI(el)) continue;
+      const group =
+        el.closest('[role="radiogroup"], [role="group"], [role="list"]') ||
+        el;
+      if (!groups.has(group)) groups.set(group, []);
+      groups.get(group).push(el);
+    }
+    return [...groups].map(
+      ([group, els]) =>
+        new AIFF.AriaChoiceField(group === els[0] ? null : group, els),
+    );
   }
 
   static isOwnUI(el) {
