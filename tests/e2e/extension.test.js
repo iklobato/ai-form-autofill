@@ -328,9 +328,7 @@ test("C4 a select's placeholder option is never offered as an answer", async () 
   assert.deepEqual(notice.options, ["Immediately", "2 weeks", "1 month"]);
 });
 
-test("C5 a field's question text never comes from the field before it", {
-  todo: "FieldContext.questionText skips a sibling that is itself an input, so 'Email' is sent with question 'Last name'; a fieldset legend becomes the context of the next unrelated fields",
-}, async () => {
+test("C5 a field's question text never comes from the field before it", async () => {
   await h.reset({ settings: KEYED, plan: {} });
   await h.open(JOB);
   await h.popupFill(JOB);

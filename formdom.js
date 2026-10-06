@@ -8,6 +8,10 @@ var AIFF = (self.AIFF = self.AIFF || {}); // shared global scope; see shared.js
 // label association at all. Defensive against partial DOM fakes (tests).
 AIFF.FieldContext = class FieldContext {
   static HEADING_SELECTOR = "h1, h2, h3, h4, legend";
+  // A legend titles only its own fieldset: one found inside an earlier
+  // sibling is another group's question, not a heading for what follows.
+  static SECTION_HEADING_SELECTOR = "h1, h2, h3, h4";
+  static CONTROL_SELECTOR = "input, select, textarea, button";
   static MAX_TEXT = 300;
 
   // Nearest heading above the element: previous siblings first, then up the tree.
@@ -23,7 +27,7 @@ AIFF.FieldContext = class FieldContext {
           sib.matches && sib.matches(FieldContext.HEADING_SELECTOR)
             ? sib
             : sib.querySelector &&
-              sib.querySelector(FieldContext.HEADING_SELECTOR);
+              sib.querySelector(FieldContext.SECTION_HEADING_SELECTOR);
         if (h) return FieldContext._clean(h.textContent);
       }
       node = node.parentElement;
@@ -32,8 +36,9 @@ AIFF.FieldContext = class FieldContext {
   }
 
   // The text block immediately before the control — the de-facto question on
-  // forms with no <label>. A sibling containing another control means we've
-  // crossed into the previous field, so stop searching that level.
+  // forms with no <label>. A sibling that is or contains another control means
+  // we've crossed into the previous field: everything above it belongs to that
+  // field (its label, the form's intro), so there is no question of our own.
   static questionText(el) {
     let node = el;
     for (let depth = 0; node && depth < 4; depth++) {
@@ -42,17 +47,21 @@ AIFF.FieldContext = class FieldContext {
         sib && hops < 4;
         sib = sib.previousElementSibling, hops++
       ) {
-        if (
-          sib.querySelector &&
-          sib.querySelector("input, select, textarea, button")
-        )
-          break;
+        if (FieldContext._isOrHasControl(sib)) return "";
         const text = FieldContext._clean(sib.textContent);
         if (text.length >= 8) return text;
       }
       node = node.parentElement;
     }
     return "";
+  }
+
+  static _isOrHasControl(node) {
+    const sel = FieldContext.CONTROL_SELECTOR;
+    return !!(
+      (node.matches && node.matches(sel)) ||
+      (node.querySelector && node.querySelector(sel))
+    );
   }
 
   static _clean(s) {
