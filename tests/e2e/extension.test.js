@@ -633,6 +633,19 @@ test("G inline chip: saved value, AI suggestion, and nothing without a key", asy
   assert.equal(await chipNoKey.filter({ hasText: "✨ AI" }).count(), 0);
 });
 
+test("G2 the chip stays when focus moves from one field to the next", {
+  todo: "the previous field's focusout timer (200 ms) hides the chip just rendered for the new field, so the chip only stays when focus comes from outside a field",
+}, async () => {
+  await h.reset({ settings: KEYED, memory: MEMORY });
+  await registerSite("shop.test");
+  const page = await h.open(`${SHOP}/contact.html`);
+  await settle();
+  await page.focus("#em");
+  await page.focus("#org");
+  await settle(800);
+  assert.equal(await page.locator("[data-aiff-ui] button", { hasText: "✨ AI" }).isVisible(), true);
+});
+
 // --------------------------------------------------------------- H. settings
 
 test("H1 settings: template, unsaved marker, Cmd/Ctrl+S saves", async () => {
