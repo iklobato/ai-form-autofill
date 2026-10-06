@@ -4,18 +4,16 @@ _Last updated: 2026-10-06_
 
 ## Where it stands
 
-- **Version 1.3.2** uploaded on 2026-10-06 (zip sha256
-  `4db46ff2d96fc56216447dda223dc79872a2878d22783e923e3ad791fb2ca32a`), **pending
-  review**. Adds the version in the popup and ARIA radios/checkboxes (Google
-  Forms). Same permissions as 1.3.1; e2e 47/47 and 216 unit checks on the zip.
-- **Version 1.3.1 is live** on the Chrome Web Store (review passed, store email
+- **Version 1.3.2 is live** on the Chrome Web Store (review passed, store email
   on 2026-10-06; visibility Public). Item ID `eipchmghhpnfdlpcbkhgbndmkacieppe`:
   https://chromewebstore.google.com/detail/eipchmghhpnfdlpcbkhgbndmkacieppe
-- The package Chrome's update server hands out (`..._1_3_1_0.crx`) was
-  downloaded and compared with main: every file is identical; the store only
-  adds `update_url` to the manifest and a `_metadata` folder. The e2e suite
-  passed 45/45 on that published package. Installed copies move to 1.3.1 on
-  their own (see "How users get the update" in PUBLISHING.md).
+  Adds the version in the popup and ARIA radios/checkboxes (Google Forms).
+  Same permissions as 1.3.1.
+- The package Chrome's update server hands out was downloaded on 2026-10-06
+  and compared with main: manifest says 1.3.2, every file is identical; the
+  store only adds `update_url` to the manifest and a `_metadata` folder. The
+  e2e suite passed 47/47 on that published package. Installed copies move to
+  1.3.2 on their own (see "How users get the update" in PUBLISHING.md).
 - Repo made **public** on 2026-09-30 so the listing can link the homepage,
   support page and privacy policy. The full history was scanned for keys and
   tokens first; none found.
@@ -166,12 +164,9 @@ _Last updated: 2026-10-06_
 
 ## Next steps
 
-1. Wait for the 1.3.2 review email. Once live, confirm it by fetching the
-   update-server crx and comparing it with main (see the 1.3.1 note above).
-   If rejected, fix what it names and resubmit as 1.3.3.
-2. Still unchecked on a store-installed copy: the permission prompt for an
+1. Still unchecked on a store-installed copy: the permission prompt for an
    embedded form (an unpacked load showed none).
-3. A live Google Form (needs a form that does not require sign-in).
+2. A live Google Form (needs a form that does not require sign-in).
 
 ## Still open (not scheduled)
 
