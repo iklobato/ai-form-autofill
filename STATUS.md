@@ -122,9 +122,17 @@ _Last updated: 2026-10-06_
 - **Chrome's permission prompt as a repeatable test.** One scripted run
   (macOS accessibility) saw the real prompt for "Learn on all sites" ("Read and
   change all your data on all websites") and Allow granted it; the test was not
-  kept because it passed about 1 run in 5 on a machine in use. Single-site
-  requests (the embedded-form button) were granted with no prompt in Chrome for
-  Testing 153 for an unpacked extension; the store build was not checked.
+  kept because it passed about 1 run in 5 on a machine in use.
+- **Embedded-form prompt (checked 2026-10-06).** On the published 1.3.2
+  package, with its manifest unchanged, a request for one new site from a
+  click stays pending (Chrome's prompt is waiting) and grants nothing on its
+  own; a site already in `host_permissions` resolves `true` at once. The
+  earlier "granted with no prompt" came from the e2e harness, which adds the
+  test hosts to `host_permissions`, so Chrome had nothing new to ask. Chromium's
+  `permissions_api.cc` skips the prompt only for component extensions, so a
+  store install follows the same rule. Not done: installing from the store
+  itself (the store page refuses Chrome for Testing: "Switch to Chrome") and
+  seeing the prompt's text.
 - **Answer quality across many runs.** `gpt-4o-mini` on OpenAI left the cover
   letter empty in 2 of 3 runs before the context fix and wrote it in 1 of 1
   after; too few runs to call it a rate.
@@ -164,9 +172,7 @@ _Last updated: 2026-10-06_
 
 ## Next steps
 
-1. Still unchecked on a store-installed copy: the permission prompt for an
-   embedded form (an unpacked load showed none).
-2. A live Google Form (needs a form that does not require sign-in).
+1. A live Google Form (needs a form that does not require sign-in).
 
 ## Still open (not scheduled)
 
