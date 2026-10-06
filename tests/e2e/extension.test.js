@@ -278,8 +278,10 @@ test("C1+E3+E4 full job form: every field kind, option pick, correction, ask pan
   assert.match(asked, /When can you start\?/);
   assert.match(asked, /What is your notice period\?/);
   const panel = page.locator("[data-aiff-ui]").filter({ hasText: "A few details needed" });
-  const choices = await panel.locator("select option").allTextContents();
-  for (const c of ["Immediately", "2 weeks", "1 month"]) assert.ok(choices.includes(c));
+  assert.deepEqual(
+    await panel.locator("select option").allTextContents(),
+    ["", "Immediately", "2 weeks", "1 month"],
+  );
   await panel.locator("input").fill("2026-11-02");
   await panel.locator("select").selectOption("2 weeks");
   await ui.clickPanel(page, "Fill & remember");
@@ -318,9 +320,7 @@ test("C3 sensitive fields are never sent to the AI", async () => {
   assert.ok(!labels.includes("Social security number"));
 });
 
-test("C4 a select's placeholder option is never offered as an answer", {
-  todo: "'Select...' is sent to the AI as an option and shown as a choice in the ask panel",
-}, async () => {
+test("C4 a select's placeholder option is never offered as an answer", async () => {
   await h.reset({ settings: KEYED, memory: MEMORY, plan: JOB_PLAN });
   await h.open(JOB);
   await h.popupFill(JOB);

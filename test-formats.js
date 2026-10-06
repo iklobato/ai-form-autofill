@@ -320,7 +320,7 @@ const cases = [
         { value: "United States", textContent: "United States" },
       ],
     }),
-    { fillable: F, describe: { options: ["—", "United States"] } },
+    { fillable: F, describe: { options: ["United States"] } },
   ],
   [
     "select multiple",

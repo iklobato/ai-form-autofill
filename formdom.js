@@ -300,8 +300,10 @@ AIFF.FormField = class FormField {
     if (context) info.context = context;
     const question = AIFF.FieldContext.questionText(el);
     if (question && question !== info.label) info.question = question;
+    // A value-less option is the "Select..." placeholder, not an answer.
     if (this.tag === "select")
       info.options = [...el.options]
+        .filter((o) => o.value !== "")
         .map((o) => o.textContent.trim())
         .filter(Boolean);
     return info;
