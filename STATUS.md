@@ -49,6 +49,9 @@ _Last updated: 2026-10-06_
 | #15 | Guard against new required permissions; how installed copies update. |
 | #16 | Version in the popup; ARIA radios/checkboxes (Google Forms); headless e2e. |
 | #17 | Version 1.3.2. |
+| #18 | Status records the 1.3.2 upload. |
+| #19 | Status records 1.3.2 as live. |
+| #20 | Embedded-form permission prompt checked on the published package. |
 
 ## What we found (and fixed)
 
@@ -139,8 +142,11 @@ _Last updated: 2026-10-06_
 
 ## Verified on 2026-10-06
 
-- `node test-formats.js`: 214 checks. `node --test tests/e2e/extension.test.js`:
-  45 tests, also run against the unzipped 1.3.1 upload zip.
+- `node test-formats.js`: 216 checks. `node --test tests/e2e/extension.test.js`:
+  47 tests, run against the 1.3.2 upload zip and again against the package
+  the store serves. (1.3.1: 214 checks, 45 tests.)
+- The embedded-form permission prompt opens on the published 1.3.2 package
+  (see "Not verified" for what that check did not cover).
 - The `beforeunload` prompt in Settings (test H1b).
 - `tests/deep-autofill.test.js` passes (with Playwright from the npx cache:
   `NODE_PATH=<npx playwright node_modules>` and a server on 8731).
@@ -161,8 +167,8 @@ _Last updated: 2026-10-06_
 - **Panels are styled inline**, not isolated in a shadow root; other page CSS
   (for example on `textarea` or `select`) can still change how they look.
 - **Store data disclosure:** "Website content" was left unchecked because page
-  text is used only to fill that form. If the review objects, check it and
-  resubmit.
+  text is used only to fill that form. The 1.3.1 and 1.3.2 reviews passed with it
+  unchecked (the 1.3.0 outcome was not recorded); if a later review objects, check it and resubmit.
 - **An AI error drops the saved values too.** If the AI call fails (bad key,
   rate limit, timeout), nothing is filled, not even fields that have a saved
   value.

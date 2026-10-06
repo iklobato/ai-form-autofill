@@ -83,11 +83,15 @@ key (30 s timeout). Keys, settings and saved values stay in
   with AI, and re-enable blocked fills.
 - **Learn on all sites** (off by default): captures typed values on every site;
   asks for access to all sites.
+- The popup shows the installed version.
 - Settings page marks **Unsaved changes**, warns before closing, saves on
   Cmd/Ctrl+S. Save is manual on purpose: it replaces the whole memory store and
   must not race live captures.
 
-## Install (load unpacked)
+## Install
+
+From the store: https://chromewebstore.google.com/detail/eipchmghhpnfdlpcbkhgbndmkacieppe
+(updates itself). To run this folder instead (load unpacked):
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
 2. **Load unpacked** and select this folder.
@@ -113,7 +117,7 @@ $0.001 with `gpt-4o-mini` and $0.02 with Claude Sonnet 5.5.
 |------|------|
 | `manifest.json` | MV3 manifest: `storage`, `activeTab`, `scripting`, provider hosts; all other sites optional |
 | `shared.js` | Shared by every context: storage stores, settings resolution, `SensitivePolicy`, `ConceptResolver`, `FieldInfo`, `FrameReplies` |
-| `formdom.js` | Page side: field wrappers (`FormField`, `ChoiceGroupField`, `RichTextField`), `FormScanner`, `PageContext` |
+| `formdom.js` | Page side: field wrappers (`FormField`, `ChoiceGroupField`, `AriaChoiceField`, `RichTextField`), `FormScanner`, `PageContext` |
 | `content.js` | Page side: `ContentApp` flow, preview/ask panel, chip, toast, capture, wizard observer |
 | `background.js` | Service worker: `PromptBuilder`, `AutofillService`, knowledge extraction, memory merge, site script registration, message router |
 | `providers.js` | HTTP client and the providers: Anthropic, OpenAI-compatible (OpenAI), OpenRouter (adds the cache mark for Claude) |
@@ -124,7 +128,7 @@ $0.001 with `gpt-4o-mini` and $0.02 with Claude Sonnet 5.5.
 - `node test-formats.js`: no dependencies. Runs the real `shared.js`,
   `formdom.js`, `providers.js` and `background.js` against ~66 field formats plus
   service checks (routing, reuse, ranking, caching, option picking, frame
-  merging). 213 checks at the time of writing.
+  merging). 216 checks at the time of writing.
 - `node --test tests/e2e/extension.test.js`: the real extension in a real
   Chromium, every feature (popup, auto-fill, wizard, iframes, preview, ask panel,
   chip, capture, import, settings, saved data, providers, errors). The AI is a
@@ -159,5 +163,6 @@ and the listing texts in [STORE_LISTING.md](STORE_LISTING.md).
   fields that have a saved value; the toast shows the error.
 - On an auto-fill site, a form embedded from another site is not filled on page
   load, only when you click **Autofill this page**.
-- Chrome's own permission prompts and the "Leave site?" warning in Settings are
-  not covered by the automated tests.
+- Chrome's own permission prompts are not covered by the automated tests. A
+  one-off script on 2026-10-06 saw the embedded-form prompt open on the
+  published package (see STATUS.md).
