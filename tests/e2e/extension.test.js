@@ -863,6 +863,28 @@ for (const [provider, url] of [
   });
 }
 
+test("J2b OpenRouter Claude models get a cacheable system prompt, others do not", async () => {
+  for (const [model, cache] of [
+    ["anthropic/claude-x", { type: "ephemeral" }],
+    ["openai/gpt-x", null],
+  ]) {
+    await h.reset({
+      settings: {
+        providerKeys: { openrouter: "sk-or" },
+        defaultProvider: "openrouter",
+        defaultModel: model,
+        globalKnowledge: "KB: I live in Austin.",
+      },
+      plan: JOB_PLAN,
+    });
+    await h.open(JOB);
+    await h.popupFill(JOB);
+    const [call] = await h.calls("autofill");
+    assert.deepEqual(call.cacheControl, cache, model);
+    assert.match(call.system, /KB: I live in Austin\./);
+  }
+});
+
 test("J3 OpenAI model without JSON mode: retried as a plain call", async () => {
   await h.reset({
     settings: { providerKeys: { openai: "sk-x" }, defaultProvider: "openai" },

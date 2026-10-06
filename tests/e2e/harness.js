@@ -154,10 +154,10 @@ function installFakeAI(plan) {
     if (!provider) return self.__realFetch(url, init);
     const plan = self.__plan || {};
     const body = JSON.parse(init.body);
+    const blocks =
+      provider === "anthropic" ? body.system : body.messages[0].content;
     const system =
-      provider === "anthropic"
-        ? body.system.map((b) => b.text).join("")
-        : body.messages[0].content;
+      typeof blocks === "string" ? blocks : blocks.map((b) => b.text).join("");
     const user =
       provider === "anthropic"
         ? body.messages[0].content
@@ -171,7 +171,7 @@ function installFakeAI(plan) {
       kind,
       model: body.model,
       maxTokens: body.max_tokens,
-      cacheControl: provider === "anthropic" ? body.system[0].cache_control : null,
+      cacheControl: typeof blocks === "string" ? null : blocks[0].cache_control,
       responseFormat: body.response_format || null,
       labels: fields.map((f) => f.label),
       fields,

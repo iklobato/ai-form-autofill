@@ -137,6 +137,9 @@ AIFF.OpenAICompatibleProvider = class OpenAICompatibleProvider extends (
     super(http);
     this.url = url;
   }
+  _systemContent(system, _model) {
+    return system;
+  }
   _chat({ apiKey, model, system, user, maxTokens }, extra) {
     return this.http.postJson(
       this.url,
@@ -144,7 +147,7 @@ AIFF.OpenAICompatibleProvider = class OpenAICompatibleProvider extends (
       {
         model,
         messages: [
-          { role: "system", content: system },
+          { role: "system", content: this._systemContent(system, model) },
           { role: "user", content: user },
         ],
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
@@ -178,6 +181,25 @@ AIFF.OpenAICompatibleProvider = class OpenAICompatibleProvider extends (
   }
 };
 
+// Claude models behind OpenRouter cache nothing unless the request marks a
+// breakpoint, so the system prompt (instructions + knowledge base, the part
+// that repeats) is marked like the Anthropic provider does. Other models get
+// the plain string.
+AIFF.OpenRouterProvider = class OpenRouterProvider extends (
+  AIFF.OpenAICompatibleProvider
+) {
+  static CLAUDE_MODEL = /^~?anthropic\//;
+  constructor(http) {
+    super(http, "https://openrouter.ai/api/v1/chat/completions");
+  }
+  _systemContent(system, model) {
+    if (!OpenRouterProvider.CLAUDE_MODEL.test(model || "")) return system;
+    return [
+      { type: "text", text: system, cache_control: { type: "ephemeral" } },
+    ];
+  }
+};
+
 AIFF.ProviderRegistry = class ProviderRegistry {
   constructor(http) {
     this.providers = {
@@ -186,10 +208,7 @@ AIFF.ProviderRegistry = class ProviderRegistry {
         http,
         "https://api.openai.com/v1/chat/completions",
       ),
-      openrouter: new AIFF.OpenAICompatibleProvider(
-        http,
-        "https://openrouter.ai/api/v1/chat/completions",
-      ),
+      openrouter: new AIFF.OpenRouterProvider(http),
     };
   }
   get(name) {

@@ -665,6 +665,27 @@ async function providerChecks() {
     !("max_tokens" in httpO.calls[1].body),
     "max_tokens present without maxTokens",
   );
+  check(
+    "openai sends the system prompt as a plain string",
+    httpO.calls[1].body.messages[0].content === "s",
+    JSON.stringify(httpO.calls[1].body.messages[0].content),
+  );
+
+  const httpR = recordingHttp();
+  const r = new ctx.AIFF.OpenRouterProvider(httpR);
+  await r.completeJson({ apiKey: "k", model: "anthropic/claude-x", system: "s", user: "u" });
+  check(
+    "openrouter marks the system prompt cacheable for Claude",
+    JSON.stringify(httpR.calls[0].body.messages[0].content) ===
+      '[{"type":"text","text":"s","cache_control":{"type":"ephemeral"}}]',
+    JSON.stringify(httpR.calls[0].body.messages[0].content),
+  );
+  await r.completeJson({ apiKey: "k", model: "openai/gpt-x", system: "s", user: "u" });
+  check(
+    "openrouter leaves other models' system prompt plain",
+    httpR.calls[1].body.messages[0].content === "s",
+    JSON.stringify(httpR.calls[1].body.messages[0].content),
+  );
 }
 
 // --- background.js: htmlToText entity decoding ------------------------------
